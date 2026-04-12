@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  users     User[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id                Int               @id @default(autoincrement())
+  name              String
+  email             String            @unique
+  passwordHash      String
+  roleId            Int
+  role              Role              @relation(fields: [roleId], references: [id])
+  managerId         Int?
+  manager           User?             @relation("ManagerToSupervisors", fields: [managerId], references: [id])
+  managedSupervisors User[]           @relation("ManagerToSupervisors")
+  supervisorId      Int?
+  supervisor        User?             @relation("SupervisorToStaff", fields: [supervisorId], references: [id])
+  supervisedStaff   User[]            @relation("SupervisorToStaff")
+  createdTasks      MasterTask[]      @relation("AdminCreatedTasks")
+  staffAssignments  StaffMasterTask[] @relation("StaffAssignments")
+  dailyTasks        DailyStaffTask[]  @relation("StaffDailyTasks")
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+model MasterTask {
+  id               Int               @id @default(autoincrement())
+  title            String
+  description      String?
+  createdByAdminId Int
+  createdByAdmin   User              @relation("AdminCreatedTasks", fields: [createdByAdminId], references: [id])
+  staffTasks       StaffMasterTask[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model StaffMasterTask {
+  id           Int             @id @default(autoincrement())
+  staffId      Int
+  staff        User            @relation("StaffAssignments", fields: [staffId], references: [id])
+  masterTaskId Int
+  masterTask   MasterTask      @relation(fields: [masterTaskId], references: [id])
+  startDate    DateTime
+  endDate      DateTime
+  isActive     Boolean         @default(true)
+  dailyTasks   DailyStaffTask[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([staffId])
+  @@index([masterTaskId])
+}
+
+model DailyStaffTask {
+  id                Int             @id @default(autoincrement())
+  staffMasterTaskId Int
+  staffMasterTask   StaffMasterTask @relation(fields: [staffMasterTaskId], references: [id])
+  staffId           Int
+  staff             User            @relation("StaffDailyTasks", fields: [staffId], references: [id])
+  taskDate          DateTime
+  status            String          @default("PENDING")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([staffMasterTaskId, taskDate])
+  @@index([staffId, taskDate])
+}
+
+model Property {
+  id          Int                  @id @default(autoincrement())
+  name        String
+  departments PropertyDepartment[]
+  floors      PropertyFloor[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@unique([name])
+}
+
+model PropertyDepartment {
+  id         Int      @id @default(autoincrement())
+  propertyId Int
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  name       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([propertyId, name])
+  @@index([propertyId])
+}
+
+model PropertyFloorZone {
+  id              Int           @id @default(autoincrement())
+  propertyFloorId Int
+  propertyFloor   PropertyFloor @relation(fields: [propertyFloorId], references: [id], onDelete: Cascade)
+  zone            String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([propertyFloorId, zone])
+  @@index([propertyFloorId])
+}
+
+model PropertyFloor {
+  id         Int                 @id @default(autoincrement())
+  propertyId Int
+  property   Property            @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  floorNo    Int
+  floorZones PropertyFloorZone[]
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  @@unique([propertyId, floorNo])
+  @@index([propertyId])
+}

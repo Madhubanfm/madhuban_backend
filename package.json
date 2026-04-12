@@ -1,0 +1,32 @@
+{
+  "name": "madhuban-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "tsx prisma/seed.ts",
+    "db:setup": "npm run prisma:generate && npm run prisma:migrate -- --name init && npm run prisma:seed",
+    "cron:run": "tsx scripts/run-daily-task-cron.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.6.0",
+    "bcryptjs": "^2.4.3",
+    "jose": "^5.9.6",
+    "next": "15.2.4",
+    "node-cron": "^4.0.7",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.11",
+    "@types/node-cron": "^3.0.11",
+    "@types/react": "19.2.14",
+    "prisma": "^6.6.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}
