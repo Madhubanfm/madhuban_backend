@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -10,6 +11,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
+    "db:fix-master-task-sequence": "prisma db execute --schema prisma/schema.prisma --file prisma/sql/fix_master_task_id_sequence.sql",
     "db:setup": "npm run prisma:generate && npm run prisma:migrate -- --name init && npm run prisma:seed",
     "cron:run": "tsx scripts/run-daily-task-cron.ts"
   },

@@ -7,325 +7,662 @@
   },
   "item": [
     {
-      "name": "Auth - Login",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
-        },
-        "url": {
-          "raw": "{{baseUrl}}/api/auth/login",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "auth",
-            "login"
-          ]
-        }
-      },
-      "event": [
+      "name": "Auth",
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"Status code is 200\", function () {",
-              "  pm.response.to.have.status(200);",
-              "});",
-              "",
-              "let data = {};",
-              "try {",
-              "  data = pm.response.json();",
-              "} catch (e) {}",
-              "",
-              "if (data.token) {",
-              "  pm.environment.set(\"token\", data.token);",
-              "}",
-              "",
-              "if (data.user && data.user.id) {",
-              "  pm.environment.set(\"adminUserId\", String(data.user.id));",
-              "}"
-            ]
-          }
-        }
-      ],
-      "response": []
-    },
-    {
-      "name": "Roles - Get All",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/roles",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "roles"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Users - Get All (Paginated)",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/users?page={{page}}&limit={{limit}}",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "users"
-          ],
-          "query": [
+          "name": "Auth - Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
             {
-              "key": "page",
-              "value": "{{page}}"
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "let data = {};",
+                  "try {",
+                  "  data = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "if (data.token) {",
+                  "  pm.environment.set(\"token\", data.token);",
+                  "}",
+                  "",
+                  "if (data.user && data.user.id) {",
+                  "  pm.environment.set(\"adminUserId\", String(data.user.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Roles",
+      "item": [
+        {
+          "name": "Roles - Get All",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/roles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "roles"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Properties",
+      "item": [
+        {
+          "name": "Read",
+          "item": [
+            {
+              "name": "Get Properties Summary",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/properties/summary",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "properties",
+                    "summary"
+                  ]
+                },
+                "description": "Compact list per property: id, name, imageUrl, timestamps, departmentCount, floorCount, zoneCount."
+              },
+              "response": []
             },
             {
-              "key": "limit",
-              "value": "{{limit}}"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Users - Get Managers",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/users/managers",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "users",
-            "managers"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Users - Get Supervisors",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/users/supervisors",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "users",
-            "supervisors"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Users - Get Staff",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/users/staff",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "users",
-            "staff"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Tasks - Get Master Tasks",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/tasks",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "tasks"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Tasks - Create Master Task (Admin)",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"title\": \"Daily Reporting\",\n  \"description\": \"Submit shift report\"\n}"
-        },
-        "url": {
-          "raw": "{{baseUrl}}/api/tasks",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "tasks"
-          ]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "let data = {};",
-              "try {",
-              "  data = pm.response.json();",
-              "} catch (e) {}",
-              "",
-              "if (data.data && data.data.id) {",
-              "  pm.environment.set(\"masterTaskId\", String(data.data.id));",
-              "}"
-            ]
-          }
-        }
-      ],
-      "response": []
-    },
-    {
-      "name": "Staff Master Tasks - Get All",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/staff-master-tasks",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "staff-master-tasks"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Staff Master Tasks - Assign Task",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"staffId\": {{staffId}},\n  \"masterTaskId\": {{masterTaskId}},\n  \"startDate\": \"{{startDate}}\",\n  \"endDate\": \"{{endDate}}\"\n}"
-        },
-        "url": {
-          "raw": "{{baseUrl}}/api/staff-master-tasks",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "staff-master-tasks"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Cron - Generate Daily Tasks (Admin)",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
-          }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/api/cron/daily-tasks",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "cron",
-            "daily-tasks"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Daily Staff Tasks - Get By Date",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/daily-staff-tasks?date={{taskDate}}",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "daily-staff-tasks"
-          ],
-          "query": [
+              "name": "Get All Properties",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/properties",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "properties"
+                  ]
+                },
+                "description": "Full tree: departments, floors, and floorZones (use for admin / sync)."
+              },
+              "response": []
+            },
             {
-              "key": "date",
-              "value": "{{taskDate}}"
+              "name": "Get Property by ID",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/properties/{{propertyId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "properties",
+                    "{{propertyId}}"
+                  ]
+                },
+                "description": "Single property with departments, floors, and floorZones."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Property Floors",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/properties/{{propertyId}}/floors",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "properties",
+                    "{{propertyId}}",
+                    "floors"
+                  ]
+                },
+                "description": "Floors for a property (PropertyFloor rows). Use `id` as `propertyFloorId` for zones."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "let data = {};",
+                      "try { data = pm.response.json(); } catch (e) {}",
+                      "if (data.data && data.data[0] && data.data[0].id) {",
+                      "  pm.environment.set(\"propertyFloorId\", String(data.data[0].id));",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "response": []
+            },
+            {
+              "name": "Get Property Zones for Floor",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/properties/{{propertyId}}/floors/{{propertyFloorId}}/zones",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "properties",
+                    "{{propertyId}}",
+                    "floors",
+                    "{{propertyFloorId}}",
+                    "zones"
+                  ]
+                },
+                "description": "Zones (PropertyFloorZone) for one floor. `id` here is the **zoneId** for POST /api/tasks."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "let data = {};",
+                      "try { data = pm.response.json(); } catch (e) {}",
+                      "if (data.data && data.data[0] && data.data[0].id) {",
+                      "  pm.environment.set(\"zoneId\", String(data.data[0].id));",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Write",
+          "item": [
+            {
+              "name": "Create Property (JSON)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"propertyName\": \"Skyline Heights\",\n  \"floors\": [\n    {\n      \"floorNumber\": 1,\n      \"zones\": [\n        { \"name\": \"Zone A\" },\n        { \"name\": \"Zone B\" },\n        { \"name\": \"Zone C\" }\n      ]\n    },\n    {\n      \"floorNumber\": 2,\n      \"zones\": [\n        { \"name\": \"Zone A\" }\n      ]\n    },\n    {\n      \"floorNumber\": 3,\n      \"zones\": [\n        { \"name\": \"Zone C\" }\n      ]\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/properties",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "properties"
+                  ]
+                },
+                "description": "JSON body. Creates the property and nested floors/zones in one transaction. For multipart + optional image file, use **Properties - Create (form-data)**. `name` is an alias for `propertyName`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "let data = {};",
+                      "try {",
+                      "  data = pm.response.json();",
+                      "} catch (e) {}",
+                      "",
+                      "if (data.data && data.data.id) {",
+                      "  pm.environment.set(\"propertyId\", String(data.data.id));",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "response": []
+            },
+            {
+              "name": "Create Property (form-data, optional image)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "propertyName",
+                      "value": "Skyline Heights",
+                      "type": "text",
+                      "description": "Required"
+                    },
+                    {
+                      "key": "floors",
+                      "value": "[{\"floorNumber\":1,\"zones\":[{\"name\":\"Zone A\"}]}]",
+                      "type": "text",
+                      "description": "Optional JSON array string"
+                    },
+                    {
+                      "key": "image",
+                      "type": "file",
+                      "src": [],
+                      "description": "Optional: jpeg, png, gif, webp (max 5MB). Choose file in Postman."
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/properties",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "properties"
+                  ]
+                },
+                "description": "Same as JSON create but uses multipart/form-data. Do not set Content-Type manually (Postman adds boundary). Response includes `imageUrl` path under `/uploads/properties/...` when a file is sent."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "let data = {};",
+                      "try {",
+                      "  data = pm.response.json();",
+                      "} catch (e) {}",
+                      "",
+                      "if (data.data && data.data.id) {",
+                      "  pm.environment.set(\"propertyId\", String(data.data.id));",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "response": []
+            },
+            {
+              "name": "Update Property (PATCH)",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Updated Property Name\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/properties/{{propertyId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "properties",
+                    "{{propertyId}}"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Property",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/properties/{{propertyId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "properties",
+                    "{{propertyId}}"
+                  ]
+                },
+                "description": "Deletes the property. Cascades to departments, floors, and zones (per schema)."
+              },
+              "response": []
             }
           ]
         }
-      },
-      "response": []
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Users - Get All (Paginated)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users?page={{page}}&limit={{limit}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "{{page}}"
+                },
+                {
+                  "key": "limit",
+                  "value": "{{limit}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Users - Get Managers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/managers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "managers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Users - Get Supervisors",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/supervisors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "supervisors"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Users - Get Staff",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/staff",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "staff"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Master Tasks",
+      "item": [
+        {
+          "name": "Tasks - Get Master Tasks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tasks"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Tasks - Create Master Task (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Daily Reporting\",\n  \"description\": \"Submit shift report\",\n  \"zoneId\": {{zoneId}},\n  \"priority\": \"HIGH\",\n  \"startTime\": \"09:00\",\n  \"endTime\": \"11:30\",\n  \"materials\": [\"mop\", \"bucket\", \"detergent\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tasks"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let data = {};",
+                  "try {",
+                  "  data = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "if (data.data && data.data.id) {",
+                  "  pm.environment.set(\"masterTaskId\", String(data.data.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Staff Master Tasks",
+      "item": [
+        {
+          "name": "Staff Master Tasks - Get All",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/staff-master-tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "staff-master-tasks"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Staff Master Tasks - Assign Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"staffId\": {{staffId}},\n  \"masterTaskId\": {{masterTaskId}},\n  \"startDate\": \"{{startDate}}\",\n  \"endDate\": \"{{endDate}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/staff-master-tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "staff-master-tasks"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Cron",
+      "item": [
+        {
+          "name": "Cron - Generate Daily Tasks (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cron/daily-tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cron",
+                "daily-tasks"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Daily Staff Tasks",
+      "item": [
+        {
+          "name": "Daily Staff Tasks - Get By Date",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/daily-staff-tasks?date={{taskDate}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "daily-staff-tasks"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{taskDate}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "variable": [

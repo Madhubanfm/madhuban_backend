@@ -36,14 +36,22 @@ model User {
 }
 
 model MasterTask {
-  id               Int               @id @default(autoincrement())
+  id               Int                @id @default(autoincrement())
   title            String
   description      String?
+  zoneId           Int?
+  zone             PropertyFloorZone? @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  priority         String?
+  startTime        DateTime?          @db.Time(6)
+  endTime          DateTime?          @db.Time(6)
+  materials        Json?
   createdByAdminId Int
-  createdByAdmin   User              @relation("AdminCreatedTasks", fields: [createdByAdminId], references: [id])
+  createdByAdmin   User               @relation("AdminCreatedTasks", fields: [createdByAdminId], references: [id])
   staffTasks       StaffMasterTask[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([zoneId])
 }
 
 model StaffMasterTask {
@@ -81,6 +89,7 @@ model DailyStaffTask {
 model Property {
   id          Int                  @id @default(autoincrement())
   name        String
+  imageUrl    String?
   departments PropertyDepartment[]
   floors      PropertyFloor[]
   createdAt   DateTime             @default(now())
@@ -106,6 +115,7 @@ model PropertyFloorZone {
   propertyFloorId Int
   propertyFloor   PropertyFloor @relation(fields: [propertyFloorId], references: [id], onDelete: Cascade)
   zone            String
+  masterTasks     MasterTask[]
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 

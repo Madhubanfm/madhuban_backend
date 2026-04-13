@@ -99,6 +99,14 @@ async function main() {
     }
   });
 
+  // Explicit `id` in create does not advance PostgreSQL's sequence; fix so new rows get unique ids.
+  await prisma.$executeRawUnsafe(`
+    SELECT setval(
+      pg_get_serial_sequence('"MasterTask"', 'id')::regclass,
+      (SELECT COALESCE(MAX(id), 1) FROM "MasterTask")
+    )
+  `);
+
   const hoProperty = await prisma.property.upsert({
     where: {
       name: "HO"
