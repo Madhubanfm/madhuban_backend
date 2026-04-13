@@ -79,11 +79,31 @@ model DailyStaffTask {
   staff             User            @relation("StaffDailyTasks", fields: [staffId], references: [id])
   taskDate          DateTime
   status            String          @default("PENDING")
+  beforePhotoUrl    String?
+  afterPhotoUrl     String?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  approval          TaskApproval?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
   @@unique([staffMasterTaskId, taskDate])
   @@index([staffId, taskDate])
+}
+
+model TaskApproval {
+  id              Int           @id @default(autoincrement())
+  dailyStaffTaskId Int          @unique
+  dailyStaffTask  DailyStaffTask @relation(fields: [dailyStaffTaskId], references: [id], onDelete: Cascade)
+  staffId         Int
+  supervisorId    Int
+  status          String        @default("PENDING")
+  submittedAt     DateTime      @default(now())
+  decidedAt       DateTime?
+  decisionNote    String?
+
+  @@index([supervisorId])
+  @@index([status])
 }
 
 model Property {

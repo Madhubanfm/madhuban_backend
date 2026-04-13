@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "f9c34fd3-5a7c-4ba4-9e72-2c4c8e5ea101",
     "name": "Madhuban Backend API",
-    "description": "Postman collection for Madhuban role-based task backend.",
+    "description": "Postman collection for Madhuban role-based task backend.\n\nStaff task photos: use Staff → Task photos (multipart). Flow: GET Tasks → POST before-photo → POST after-photo (creates TaskApproval for supervisor). Presigned upload and start/complete endpoints are not used.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -10,7 +10,7 @@
       "name": "Auth",
       "item": [
         {
-          "name": "Auth - Login",
+          "name": "Auth - Login (Admin)",
           "request": {
             "method": "POST",
             "header": [
@@ -56,6 +56,114 @@
                   "",
                   "if (data.user && data.user.id) {",
                   "  pm.environment.set(\"adminUserId\", String(data.user.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Auth - Login (Manager)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{managerEmail}}\",\n  \"password\": \"{{managerPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "let data = {};",
+                  "try {",
+                  "  data = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "if (data.token) {",
+                  "  pm.environment.set(\"token\", data.token);",
+                  "}",
+                  "",
+                  "if (data.user && data.user.id) {",
+                  "  pm.environment.set(\"managerUserId\", String(data.user.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Auth - Login (Staff)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{staffEmail}}\",\n  \"password\": \"{{staffPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "let data = {};",
+                  "try {",
+                  "  data = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "if (data.token) {",
+                  "  pm.environment.set(\"token\", data.token);",
+                  "}",
+                  "",
+                  "if (data.user && data.user.id) {",
+                  "  pm.environment.set(\"staffId\", String(data.user.id));",
                   "}"
                 ]
               }
@@ -637,60 +745,336 @@
     },
     {
       "name": "Staff",
+      "description": "Requires `Auth - Login (Staff)` (sets `{{token}}`). Optional env: `taskDate`, `dailyTaskId`, `beforePhotoPath`, `afterPhotoPath` for local file paths.\n\nEndpoints: `GET /api/staff/dashboard`, `GET /api/staff/tasks`, `POST/.../before-photo`, `POST/.../after-photo` (creates supervisor approval).",
       "item": [
         {
-          "name": "Staff - Dashboard (Today)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/staff/dashboard",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "staff",
-                "dashboard"
-              ]
+          "name": "Dashboard",
+          "item": [
+            {
+              "name": "GET Staff - Dashboard (today)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/staff/dashboard",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "staff",
+                    "dashboard"
+                  ]
+                },
+                "description": "Optional query: `date` (YYYY-MM-DD). IST day normalization."
+              },
+              "response": []
+            },
+            {
+              "name": "GET Staff - Dashboard (by date)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/staff/dashboard?date={{taskDate}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "staff",
+                    "dashboard"
+                  ],
+                  "query": [
+                    {
+                      "key": "date",
+                      "value": "{{taskDate}}"
+                    }
+                  ]
+                }
+              },
+              "response": []
             }
-          },
-          "response": []
+          ]
         },
         {
-          "name": "Staff - Dashboard (By Date)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/staff/dashboard?date={{taskDate}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "staff",
-                "dashboard"
-              ],
-              "query": [
-                {
-                  "key": "date",
-                  "value": "{{taskDate}}"
+          "name": "Tasks",
+          "description": "`GET /api/staff/tasks` — `filter`: all | critical | high | done; `page`, `limit` (pagination).",
+          "item": [
+            {
+              "name": "GET Staff - Tasks (all, paginated)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/staff/tasks?date={{taskDate}}&filter=all&page=1&limit=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "staff",
+                    "tasks"
+                  ],
+                  "query": [
+                    {
+                      "key": "date",
+                      "value": "{{taskDate}}"
+                    },
+                    {
+                      "key": "filter",
+                      "value": "all"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
                 }
-              ]
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "let data = {};",
+                      "try { data = pm.response.json(); } catch (e) {}",
+                      "if (data.data && data.data.tasks && data.data.tasks[0] && data.data.tasks[0].id) {",
+                      "  pm.environment.set(\"dailyTaskId\", String(data.data.tasks[0].id));",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "response": []
+            },
+            {
+              "name": "GET Staff - Tasks (critical)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/staff/tasks?date={{taskDate}}&filter=critical&page=1&limit=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "staff",
+                    "tasks"
+                  ],
+                  "query": [
+                    {
+                      "key": "date",
+                      "value": "{{taskDate}}"
+                    },
+                    {
+                      "key": "filter",
+                      "value": "critical"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "GET Staff - Tasks (high)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/staff/tasks?date={{taskDate}}&filter=high&page=1&limit=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "staff",
+                    "tasks"
+                  ],
+                  "query": [
+                    {
+                      "key": "date",
+                      "value": "{{taskDate}}"
+                    },
+                    {
+                      "key": "filter",
+                      "value": "high"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "GET Staff - Tasks (done)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/staff/tasks?date={{taskDate}}&filter=done&page=1&limit=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "staff",
+                    "tasks"
+                  ],
+                  "query": [
+                    {
+                      "key": "date",
+                      "value": "{{taskDate}}"
+                    },
+                    {
+                      "key": "filter",
+                      "value": "done"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                }
+              },
+              "response": []
             }
-          },
-          "response": []
+          ]
+        },
+        {
+          "name": "Task photos",
+          "description": "`POST /api/staff/tasks/:dailyTaskId/before-photo` and `.../after-photo`. Body: multipart/form-data, field `photo` (jpeg/png). After-photo creates `TaskApproval` for the staff supervisor.",
+          "item": [
+            {
+              "name": "POST Staff - Before photo (multipart)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "photo",
+                      "type": "file",
+                      "src": "{{beforePhotoPath}}"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/staff/tasks/{{dailyTaskId}}/before-photo",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "staff",
+                    "tasks",
+                    "{{dailyTaskId}}",
+                    "before-photo"
+                  ]
+                },
+                "description": "Set `dailyTaskId` from task list or env. Set `beforePhotoPath` in environment to a local image file path."
+              },
+              "response": []
+            },
+            {
+              "name": "POST Staff - After photo (multipart) + approval",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "photo",
+                      "type": "file",
+                      "src": "{{afterPhotoPath}}"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/staff/tasks/{{dailyTaskId}}/after-photo",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "staff",
+                    "tasks",
+                    "{{dailyTaskId}}",
+                    "after-photo"
+                  ]
+                },
+                "description": "Requires before-photo first. Creates pending approval for supervisor."
+              },
+              "response": []
+            }
+          ]
         }
       ]
     },

@@ -49,15 +49,27 @@ export async function GET() {
     include: {
       createdByAdmin: {
         select: { id: true, name: true, email: true }
-      },
-      zone: {
-        select: { id: true, zone: true, propertyFloorId: true }
       }
     }
   });
 
+  const zoneIds = [...new Set(tasks.map((t) => t.zoneId).filter((id): id is number => id != null))];
+  const zones =
+    zoneIds.length > 0
+      ? await prisma.propertyFloorZone.findMany({
+          where: { id: { in: zoneIds } },
+          select: { id: true, zone: true, propertyFloorId: true }
+        })
+      : [];
+  const zoneById = new Map(zones.map((z) => [z.id, z]));
+
+  const data = tasks.map((t) => ({
+    ...t,
+    zone: t.zoneId != null ? (zoneById.get(t.zoneId) ?? null) : null
+  }));
+
   return Response.json({
-    data: tasks
+    data
   });
 }
 
@@ -122,13 +134,19 @@ export async function POST(req: Request) {
             materials: d.materials === null ? Prisma.DbNull : d.materials
           }
         : {})
-    },
-    include: {
-      zone: {
-        select: { id: true, zone: true, propertyFloorId: true }
-      }
     }
   });
 
-  return Response.json({ message: "Master task created.", data: task }, { status: 201 });
+  const zone =
+    task.zoneId != null
+      ? await prisma.propertyFloorZone.findUnique({
+          where: { id: task.zoneId },
+          select: { id: true, zone: true, propertyFloorId: true }
+        })
+      : null;
+
+  return Response.json(
+    { message: "Master task created.", data: { ...task, zone } },
+    { status: 201 }
+  );
 }
