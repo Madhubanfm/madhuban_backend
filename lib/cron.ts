@@ -1,9 +1,9 @@
 import { ROLE_NAMES } from "@/lib/constants";
-import { normalizeToDay } from "@/lib/date";
+import { normalizeToDayIST } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 
 export async function generateDailyTasksForDate(inputDate: Date = new Date()) {
-  const taskDate = normalizeToDay(inputDate);
+  const taskDate = normalizeToDayIST(inputDate);
 
   const activeStaffAssignments = await prisma.staffMasterTask.findMany({
     where: {

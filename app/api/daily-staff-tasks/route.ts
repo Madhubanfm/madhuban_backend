@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/prisma";
+import { normalizeToDayIST } from "@/lib/date";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const dateParam = url.searchParams.get("date");
 
   const date = dateParam ? new Date(dateParam) : new Date();
-  const taskDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const taskDate = normalizeToDayIST(date);
 
   const tasks = await prisma.dailyStaffTask.findMany({
     where: {

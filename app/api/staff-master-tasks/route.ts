@@ -1,5 +1,6 @@
 import { getAuthUserFromRequest } from "@/lib/auth";
 import { ROLE_NAMES } from "@/lib/constants";
+import { normalizeToDayIST } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
@@ -90,6 +91,31 @@ export async function POST(req: Request) {
       endDate
     }
   });
+
+  const todayTaskDate = normalizeToDayIST(new Date());
+  const startTaskDate = normalizeToDayIST(startDate);
+  const endTaskDate = normalizeToDayIST(endDate);
+
+  const isActiveForToday =
+    startTaskDate.getTime() <= todayTaskDate.getTime() && todayTaskDate.getTime() <= endTaskDate.getTime();
+
+  if (isActiveForToday && startTaskDate.getTime() === todayTaskDate.getTime()) {
+    await prisma.dailyStaffTask.upsert({
+      where: {
+        staffMasterTaskId_taskDate: {
+          staffMasterTaskId: assignment.id,
+          taskDate: todayTaskDate
+        }
+      },
+      create: {
+        staffMasterTaskId: assignment.id,
+        staffId: assignment.staffId,
+        taskDate: todayTaskDate,
+        status: "PENDING"
+      },
+      update: {}
+    });
+  }
 
   return Response.json({ message: "Task assigned to staff.", data: assignment }, { status: 201 });
 }
