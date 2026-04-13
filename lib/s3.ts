@@ -30,6 +30,17 @@ export function buildTaskPhotoKey(params: {
   return `tasks/${params.dailyTaskId}/${params.kind}/${ts}.${params.ext}`;
 }
 
+export function buildAttendanceSelfieKey(params: {
+  staffId: number;
+  workDate: Date;
+  ext: "jpg" | "png";
+  now?: Date;
+}) {
+  const day = params.workDate.toISOString().slice(0, 10);
+  const ts = (params.now ?? new Date()).toISOString().replace(/[:.]/g, "-");
+  return `attendance/${params.staffId}/${day}/selfie-${ts}.${params.ext}`;
+}
+
 export function buildPublicUrl(key: string) {
   const { region, bucket } = getS3Config();
   const publicBaseUrl = `https://${bucket}.s3.${region}.amazonaws.com`;

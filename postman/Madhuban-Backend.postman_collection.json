@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "f9c34fd3-5a7c-4ba4-9e72-2c4c8e5ea101",
     "name": "Madhuban Backend API",
-    "description": "Postman collection for Madhuban role-based task backend.\n\nStaff task photos: use Staff → Task photos (multipart). Flow: GET Tasks → POST before-photo → POST after-photo (creates TaskApproval for supervisor). Presigned upload and start/complete endpoints are not used.",
+    "description": "Postman collection for Madhuban role-based task backend.\n\nStaff attendance: Staff → Attendance — GET status, POST check-in (selfie + GPS) and check-out (GPS) as multipart/form-data. Requires AWS S3 env for check-in uploads.\n\nStaff task photos: use Staff → Task photos (multipart). Flow: GET Tasks → POST before-photo → POST after-photo (creates TaskApproval for supervisor). Presigned upload and start/complete endpoints are not used.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -745,7 +745,7 @@
     },
     {
       "name": "Staff",
-      "description": "Requires `Auth - Login (Staff)` (sets `{{token}}`). Optional env: `taskDate`, `dailyTaskId`, `beforePhotoPath`, `afterPhotoPath` for local file paths.\n\nEndpoints: `GET /api/staff/dashboard`, `GET /api/staff/tasks`, `POST/.../before-photo`, `POST/.../after-photo` (creates supervisor approval).",
+      "description": "Requires `Auth - Login (Staff)` (sets `{{token}}`). Optional env: `taskDate`, `dailyTaskId`, `beforePhotoPath`, `afterPhotoPath`, `attendanceSelfiePath`, `attendanceLat`, `attendanceLng` for local file paths / sample coordinates.\n\nEndpoints: `GET /api/staff/dashboard`, `GET /api/staff/attendance`, `POST /api/staff/attendance` (check-in / check-out), `GET /api/staff/tasks`, `POST/.../before-photo`, `POST/.../after-photo` (creates supervisor approval).",
       "item": [
         {
           "name": "Dashboard",
@@ -802,6 +802,143 @@
                     }
                   ]
                 }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Attendance",
+          "description": "`GET /api/staff/attendance` — optional `date` (YYYY-MM-DD), IST calendar day. `POST /api/staff/attendance` — multipart: `action` check_in | check_out, `latitude`, `longitude`; check-in also requires `selfie` (jpeg/png). Set `attendanceSelfiePath` in environment to a local image path for check-in.",
+          "item": [
+            {
+              "name": "GET Staff - Attendance (today)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/staff/attendance",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "staff", "attendance"]
+                },
+                "description": "Returns `phase`: NOT_CHECKED_IN | ACTIVE | COMPLETED, check-in/out times, GPS, `shift` (MORNING | EVENING | NIGHT)."
+              },
+              "response": []
+            },
+            {
+              "name": "GET Staff - Attendance (by date)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/staff/attendance?date={{taskDate}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "staff", "attendance"],
+                  "query": [
+                    {
+                      "key": "date",
+                      "value": "{{taskDate}}"
+                    }
+                  ]
+                },
+                "description": "Same as today but for `taskDate` (YYYY-MM-DD)."
+              },
+              "response": []
+            },
+            {
+              "name": "POST Staff - Attendance check-in (multipart)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "action",
+                      "value": "check_in",
+                      "type": "text",
+                      "description": "Required"
+                    },
+                    {
+                      "key": "latitude",
+                      "value": "{{attendanceLat}}",
+                      "type": "text",
+                      "description": "Decimal degrees"
+                    },
+                    {
+                      "key": "longitude",
+                      "value": "{{attendanceLng}}",
+                      "type": "text",
+                      "description": "Decimal degrees"
+                    },
+                    {
+                      "key": "selfie",
+                      "type": "file",
+                      "src": "{{attendanceSelfiePath}}",
+                      "description": "image/jpeg or image/png. Set attendanceSelfiePath in environment."
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/staff/attendance",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "staff", "attendance"]
+                },
+                "description": "409 if already checked in today. Uploads selfie to S3; sets status PRESENT."
+              },
+              "response": []
+            },
+            {
+              "name": "POST Staff - Attendance check-out (multipart)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "action",
+                      "value": "check_out",
+                      "type": "text"
+                    },
+                    {
+                      "key": "latitude",
+                      "value": "{{attendanceLat}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "longitude",
+                      "value": "{{attendanceLng}}",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/staff/attendance",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "staff", "attendance"]
+                },
+                "description": "400 if not checked in; 409 if already checked out."
               },
               "response": []
             }
@@ -1161,6 +1298,18 @@
     {
       "key": "reportMonth",
       "value": "4"
+    },
+    {
+      "key": "attendanceLat",
+      "value": "28.6139"
+    },
+    {
+      "key": "attendanceLng",
+      "value": "77.2090"
+    },
+    {
+      "key": "attendanceSelfiePath",
+      "value": ""
     }
   ]
 }

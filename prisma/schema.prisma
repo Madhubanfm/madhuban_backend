@@ -109,13 +109,20 @@ model TaskApproval {
 }
 
 model StaffAttendance {
-  id        Int      @id @default(autoincrement())
-  staffId   Int
-  staff     User     @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  workDate  DateTime
-  status    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                   Int       @id @default(autoincrement())
+  staffId              Int
+  staff                User      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  workDate             DateTime
+  status               String
+  checkInAt            DateTime?
+  checkOutAt           DateTime?
+  selfieUrl            String?
+  checkInLatitude      Float?
+  checkInLongitude     Float?
+  checkOutLatitude     Float?
+  checkOutLongitude    Float?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   @@unique([staffId, workDate])
   @@index([staffId, workDate])

@@ -29,3 +29,24 @@ export function normalizeToDayIST(date: Date): Date {
   const { year, month, day } = getDatePartsInTimeZone(date, "Asia/Kolkata");
   return new Date(Date.UTC(year, month - 1, day));
 }
+
+export function deriveShiftIST(now: Date): "MORNING" | "EVENING" | "NIGHT" {
+  const hourStr = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    hour12: false
+  }).format(now);
+  const hour = Number(hourStr);
+
+  if (!Number.isFinite(hour)) {
+    return "MORNING";
+  }
+
+  if (hour >= 5 && hour < 14) {
+    return "MORNING";
+  }
+  if (hour >= 14 && hour < 22) {
+    return "EVENING";
+  }
+  return "NIGHT";
+}
