@@ -1075,6 +1075,47 @@
               "response": []
             }
           ]
+        },
+        {
+          "name": "Reports",
+          "description": "`GET /api/staff/report` — monthly priority counts, zone completion %, attendance grid/streaks, last 5 checker feedback.",
+          "item": [
+            {
+              "name": "GET Staff - Report (month)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/staff/report?year={{reportYear}}&month={{reportMonth}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "staff",
+                    "report"
+                  ],
+                  "query": [
+                    {
+                      "key": "year",
+                      "value": "{{reportYear}}"
+                    },
+                    {
+                      "key": "month",
+                      "value": "{{reportMonth}}"
+                    }
+                  ]
+                },
+                "description": "Requires staff JWT. Set `reportYear` / `reportMonth` in environment (e.g. 2026, 4 for April)."
+              },
+              "response": []
+            }
+          ]
         }
       ]
     },
@@ -1112,6 +1153,14 @@
     {
       "key": "baseUrl",
       "value": "http://localhost:3000"
+    },
+    {
+      "key": "reportYear",
+      "value": "2026"
+    },
+    {
+      "key": "reportMonth",
+      "value": "4"
     }
   ]
 }

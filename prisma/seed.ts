@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../lib/auth";
 import { ALL_ROLES, ROLE_NAMES } from "../lib/constants";
+import { normalizeToDayIST } from "../lib/date";
 
 const prisma = new PrismaClient();
 
@@ -190,6 +191,54 @@ async function main() {
         zone
       }
     });
+  }
+
+  const staffUser = await prisma.user.findUnique({
+    where: { email: "staff@madhuban360.com" }
+  });
+  if (staffUser) {
+    for (let d = 1; d <= 20; d++) {
+      const workDate = normalizeToDayIST(
+        new Date(`2026-04-${String(d).padStart(2, "0")}T12:00:00+05:30`)
+      );
+      const absent = d % 8 === 0;
+      await prisma.staffAttendance.upsert({
+        where: {
+          staffId_workDate: { staffId: staffUser.id, workDate }
+        },
+        update: { status: absent ? "ABSENT" : "PRESENT" },
+        create: {
+          staffId: staffUser.id,
+          workDate,
+          status: absent ? "ABSENT" : "PRESENT"
+        }
+      });
+    }
+
+    const sampleTask = await prisma.dailyStaffTask.findFirst({
+      where: { staffId: staffUser.id },
+      orderBy: { id: "asc" }
+    });
+    if (sampleTask) {
+      await prisma.taskApproval.upsert({
+        where: { dailyStaffTaskId: sampleTask.id },
+        update: {
+          status: "APPROVED",
+          decidedAt: new Date(),
+          decisionNote: "Well done, all areas clean",
+          rating: 5
+        },
+        create: {
+          dailyStaffTaskId: sampleTask.id,
+          staffId: staffUser.id,
+          supervisorId: supervisor.id,
+          status: "APPROVED",
+          decidedAt: new Date(),
+          decisionNote: "Well done, all areas clean",
+          rating: 5
+        }
+      });
+    }
   }
 
   console.log("Seed completed.");

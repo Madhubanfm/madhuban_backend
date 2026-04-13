@@ -31,6 +31,7 @@ model User {
   createdTasks      MasterTask[]      @relation("AdminCreatedTasks")
   staffAssignments  StaffMasterTask[] @relation("StaffAssignments")
   dailyTasks        DailyStaffTask[]  @relation("StaffDailyTasks")
+  staffAttendances  StaffAttendance[]
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 }
@@ -101,9 +102,23 @@ model TaskApproval {
   submittedAt     DateTime      @default(now())
   decidedAt       DateTime?
   decisionNote    String?
+  rating          Int?
 
   @@index([supervisorId])
   @@index([status])
+}
+
+model StaffAttendance {
+  id        Int      @id @default(autoincrement())
+  staffId   Int
+  staff     User     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  workDate  DateTime
+  status    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([staffId, workDate])
+  @@index([staffId, workDate])
 }
 
 model Property {
