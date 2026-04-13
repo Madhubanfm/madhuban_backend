@@ -748,6 +748,56 @@
       "description": "Requires `Auth - Login (Staff)` (sets `{{token}}`). Optional env: `taskDate`, `dailyTaskId`, `beforePhotoPath`, `afterPhotoPath`, `attendanceSelfiePath`, `attendanceLat`, `attendanceLng` for local file paths / sample coordinates.\n\nEndpoints: `GET /api/staff/dashboard`, `GET /api/staff/attendance`, `POST /api/staff/attendance` (check-in / check-out), `GET /api/staff/tasks`, `POST/.../before-photo`, `POST/.../after-photo` (creates supervisor approval).",
       "item": [
         {
+          "name": "Profile",
+          "item": [
+            {
+              "name": "GET Staff - Profile",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/staff/profile",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "staff", "profile"]
+                },
+                "description": "Requires `Auth - Login (Staff)` to set `{{token}}`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status code is 200\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "let body = {};",
+                      "try {",
+                      "  body = pm.response.json();",
+                      "} catch (e) {}",
+                      "",
+                      "pm.test(\"Response has data.staff_id\", function () {",
+                      "  pm.expect(body && body.data && body.data.staff_id).to.exist;",
+                      "});",
+                      "",
+                      "pm.test(\"Response has data.full_name\", function () {",
+                      "  pm.expect(body && body.data && body.data.full_name).to.exist;",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "response": []
+            }
+          ]
+        },
+        {
           "name": "Dashboard",
           "item": [
             {
