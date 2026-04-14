@@ -1492,8 +1492,32 @@
     },
     {
       "name": "Supervisor",
-      "description": "Requires `Auth - Login (Supervisor)` (sets `{{token}}`). Reuses `{{taskDate}}`, `{{attendanceLat}}`, `{{attendanceLng}}`, `{{attendanceSelfiePath}}` like Staff attendance.\n\nEndpoints: `GET /api/supervisor/dashboard` (optional `date`), `GET/POST /api/supervisor/attendance`, `GET /api/supervisor/reviews` (list), `GET /api/supervisor/reviews/:dailyTaskId` (detail), `POST /api/supervisor/reviews/:dailyTaskId/decision` (approve/send_back), `GET /api/supervisor/reports/shift` (Reports → Shift analytics).",
+      "description": "Requires `Auth - Login (Supervisor)` (sets `{{token}}`). Reuses `{{taskDate}}`, `{{attendanceLat}}`, `{{attendanceLng}}`, `{{attendanceSelfiePath}}` like Staff attendance.\n\nEndpoints: `GET /api/supervisor/profile`, `GET /api/supervisor/dashboard` (optional `date`), `GET/POST /api/supervisor/attendance`, `GET /api/supervisor/reviews` (list), `GET /api/supervisor/reviews/:dailyTaskId` (detail), `POST /api/supervisor/reviews/:dailyTaskId/decision` (approve/send_back), `GET /api/supervisor/reports/shift` (Reports → Shift analytics).",
       "item": [
+        {
+          "name": "Profile",
+          "item": [
+            {
+              "name": "GET Supervisor - Profile",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/supervisor/profile",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "supervisor", "profile"]
+                },
+                "description": "Supervisor JWT. Returns profile fields for the mobile Profile screen (name/initials/email/role, active status from today attendance, property label from today supervised tasks, reporting manager, appVersion)."
+              },
+              "response": []
+            }
+          ]
+        },
         {
           "name": "Dashboard",
           "item": [

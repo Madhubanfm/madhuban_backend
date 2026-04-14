@@ -82,6 +82,9 @@ Request:
 ### Staff
 `GET /api/users/staff`
 
+### Supervisor Profile
+`GET /api/supervisor/profile`
+
 ### Master Tasks (admin create)
 - `GET /api/tasks`
 - `POST /api/tasks` (Bearer token, admin only)
