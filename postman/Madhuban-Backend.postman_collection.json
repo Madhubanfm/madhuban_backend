@@ -1362,7 +1362,7 @@
     },
     {
       "name": "Supervisor",
-      "description": "Requires `Auth - Login (Supervisor)` (sets `{{token}}`). Reuses `{{taskDate}}`, `{{attendanceLat}}`, `{{attendanceLng}}`, `{{attendanceSelfiePath}}` like Staff attendance.\n\nEndpoints: `GET /api/supervisor/dashboard` (optional `date`), `GET/POST /api/supervisor/attendance`.",
+      "description": "Requires `Auth - Login (Supervisor)` (sets `{{token}}`). Reuses `{{taskDate}}`, `{{attendanceLat}}`, `{{attendanceLng}}`, `{{attendanceSelfiePath}}` like Staff attendance.\n\nEndpoints: `GET /api/supervisor/dashboard` (optional `date`), `GET/POST /api/supervisor/attendance`, `GET /api/supervisor/reviews` (list), `GET /api/supervisor/reviews/:dailyTaskId` (detail), `POST /api/supervisor/reviews/:dailyTaskId/decision` (approve/send_back).",
       "item": [
         {
           "name": "Dashboard",
@@ -1543,6 +1543,145 @@
                   "path": ["api", "supervisor", "attendance"]
                 },
                 "description": "400 if not checked in; 409 if already checked out."
+              },
+              "response": []
+            }
+          ]
+        }
+        ,
+        {
+          "name": "Reviews",
+          "description": "Supervisor review flow for staff submitted tasks (TaskApproval). `status`: needs_review | sent_back | approved | all. `q` searches task title / zone / staff name. `priority`: CRITICAL | HIGH.",
+          "item": [
+            {
+              "name": "GET Supervisor - Reviews (needs_review)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/supervisor/reviews?date={{taskDate}}&status=needs_review&page=1&limit=20",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "supervisor", "reviews"],
+                  "query": [
+                    { "key": "date", "value": "{{taskDate}}" },
+                    { "key": "status", "value": "needs_review" },
+                    { "key": "page", "value": "1" },
+                    { "key": "limit", "value": "20" }
+                  ]
+                },
+                "description": "List review cards for approvals pending supervisor decision."
+              },
+              "response": []
+            },
+            {
+              "name": "GET Supervisor - Reviews (sent_back)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/supervisor/reviews?date={{taskDate}}&status=sent_back&page=1&limit=20",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "supervisor", "reviews"],
+                  "query": [
+                    { "key": "date", "value": "{{taskDate}}" },
+                    { "key": "status", "value": "sent_back" },
+                    { "key": "page", "value": "1" },
+                    { "key": "limit", "value": "20" }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "GET Supervisor - Reviews (approved)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/supervisor/reviews?date={{taskDate}}&status=approved&page=1&limit=20",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "supervisor", "reviews"],
+                  "query": [
+                    { "key": "date", "value": "{{taskDate}}" },
+                    { "key": "status", "value": "approved" },
+                    { "key": "page", "value": "1" },
+                    { "key": "limit", "value": "20" }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "GET Supervisor - Review Detail",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/supervisor/reviews/{{dailyTaskId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "supervisor", "reviews", "{{dailyTaskId}}"]
+                },
+                "description": "Modal payload (task meta, maker, photos, approval status). Set `dailyTaskId` from Staff after-photo flow."
+              },
+              "response": []
+            },
+            {
+              "name": "POST Supervisor - Decision Approve",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"approve\",\n  \"comment\": \"Looks good.\",\n  \"rating\": 5\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/supervisor/reviews/{{dailyTaskId}}/decision",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "supervisor", "reviews", "{{dailyTaskId}}", "decision"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "POST Supervisor - Decision Send Back",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"send_back\",\n  \"comment\": \"Dust on surface. Please re-clean and upload after photo.\",\n  \"rating\": 2\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/supervisor/reviews/{{dailyTaskId}}/decision",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "supervisor", "reviews", "{{dailyTaskId}}", "decision"]
+                }
               },
               "response": []
             }

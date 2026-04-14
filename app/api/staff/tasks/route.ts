@@ -42,6 +42,8 @@ type StaffTaskRow = {
   dailyTaskId: number;
   status: string;
   taskDate: Date;
+  approvalStatus: string | null;
+  decisionNote: string | null;
   masterTaskId: number;
   title: string;
   description: string | null;
@@ -112,6 +114,7 @@ export async function GET(req: Request) {
     FROM "DailyStaffTask" dst
     JOIN "StaffMasterTask" smt ON smt.id = dst."staffMasterTaskId"
     JOIN "MasterTask" mt ON mt.id = smt."masterTaskId"
+    LEFT JOIN "TaskApproval" ta ON ta."dailyStaffTaskId" = dst.id
     LEFT JOIN "PropertyFloorZone" z ON z.id = mt."zoneId"
     LEFT JOIN "PropertyFloor" f ON f.id = z."propertyFloorId"
     LEFT JOIN "Property" p ON p.id = f."propertyId"
@@ -126,6 +129,8 @@ export async function GET(req: Request) {
           dst.id AS "dailyTaskId",
           dst."status" AS "status",
           dst."taskDate" AS "taskDate",
+          ta."status" AS "approvalStatus",
+          ta."decisionNote" AS "decisionNote",
           mt.id AS "masterTaskId",
           mt."title" AS "title",
           mt."description" AS "description",
@@ -195,6 +200,12 @@ export async function GET(req: Request) {
         id: r.dailyTaskId,
         status: r.status,
         taskDate: r.taskDate,
+        approval: r.approvalStatus
+          ? {
+              status: r.approvalStatus,
+              decisionNote: r.decisionNote
+            }
+          : null,
         masterTask: {
           id: r.masterTaskId,
           title: r.title,
