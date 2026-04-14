@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "f9c34fd3-5a7c-4ba4-9e72-2c4c8e5ea101",
     "name": "Madhuban Backend API",
-    "description": "Postman collection for Madhuban role-based task backend.\n\nStaff attendance: Staff → Attendance — GET status, POST check-in (selfie + GPS) and check-out (GPS) as multipart/form-data. Requires AWS S3 env for check-in uploads.\n\nStaff task photos: use Staff → Task photos (multipart). Flow: GET Tasks → POST before-photo → POST after-photo (creates TaskApproval for supervisor). Presigned upload and start/complete endpoints are not used.",
+    "description": "Postman collection for Madhuban role-based task backend.\n\n**Supervisor:** Auth → Login (Supervisor), then Supervisor → Dashboard / Attendance. `GET /api/supervisor/dashboard` aggregates KPIs, zone health, urgent tasks, recent activity (supervisor JWT). `GET/POST /api/supervisor/attendance` mirrors staff (selfie + GPS on check-in).\n\nStaff attendance: Staff → Attendance — GET status, POST check-in (selfie + GPS) and check-out (GPS) as multipart/form-data. Requires AWS S3 env for check-in uploads.\n\nStaff task photos: use Staff → Task photos (multipart). Flow: GET Tasks → POST before-photo → POST after-photo (creates TaskApproval for supervisor). Presigned upload and start/complete endpoints are not used.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -164,6 +164,60 @@
                   "",
                   "if (data.user && data.user.id) {",
                   "  pm.environment.set(\"staffId\", String(data.user.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Auth - Login (Supervisor)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{supervisorEmail}}\",\n  \"password\": \"{{supervisorPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "let data = {};",
+                  "try {",
+                  "  data = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "if (data.token) {",
+                  "  pm.environment.set(\"token\", data.token);",
+                  "}",
+                  "",
+                  "if (data.user && data.user.id) {",
+                  "  pm.environment.set(\"supervisorUserId\", String(data.user.id));",
                   "}"
                 ]
               }
@@ -1307,6 +1361,196 @@
       ]
     },
     {
+      "name": "Supervisor",
+      "description": "Requires `Auth - Login (Supervisor)` (sets `{{token}}`). Reuses `{{taskDate}}`, `{{attendanceLat}}`, `{{attendanceLng}}`, `{{attendanceSelfiePath}}` like Staff attendance.\n\nEndpoints: `GET /api/supervisor/dashboard` (optional `date`), `GET/POST /api/supervisor/attendance`.",
+      "item": [
+        {
+          "name": "Dashboard",
+          "item": [
+            {
+              "name": "GET Supervisor - Dashboard (today)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/supervisor/dashboard",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "supervisor", "dashboard"]
+                },
+                "description": "Supervisor JWT. KPIs (needsReview, approved, rejected), completion %, urgentTasks, zones, recentActivity, badges, shiftInProgress (from attendance for that IST day)."
+              },
+              "response": []
+            },
+            {
+              "name": "GET Supervisor - Dashboard (by date)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/supervisor/dashboard?date={{taskDate}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "supervisor", "dashboard"],
+                  "query": [
+                    {
+                      "key": "date",
+                      "value": "{{taskDate}}"
+                    }
+                  ]
+                },
+                "description": "Same as today with optional `date` (YYYY-MM-DD), IST calendar day."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Attendance",
+          "description": "`GET /api/supervisor/attendance` — optional `date` (YYYY-MM-DD). `POST` — multipart: `action` check_in | check_out, `latitude`, `longitude`; check-in requires `selfie` (jpeg/png). Same `StaffAttendance` row keyed by supervisor user id.",
+          "item": [
+            {
+              "name": "GET Supervisor - Attendance (today)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/supervisor/attendance",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "supervisor", "attendance"]
+                },
+                "description": "Returns `phase`: NOT_CHECKED_IN | ACTIVE | COMPLETED, check-in/out times, GPS, `shift`."
+              },
+              "response": []
+            },
+            {
+              "name": "GET Supervisor - Attendance (by date)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/supervisor/attendance?date={{taskDate}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "supervisor", "attendance"],
+                  "query": [
+                    {
+                      "key": "date",
+                      "value": "{{taskDate}}"
+                    }
+                  ]
+                },
+                "description": "Attendance for `taskDate` (YYYY-MM-DD)."
+              },
+              "response": []
+            },
+            {
+              "name": "POST Supervisor - Attendance check-in (multipart)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "action",
+                      "value": "check_in",
+                      "type": "text",
+                      "description": "Required"
+                    },
+                    {
+                      "key": "latitude",
+                      "value": "{{attendanceLat}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "longitude",
+                      "value": "{{attendanceLng}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "selfie",
+                      "type": "file",
+                      "src": "{{attendanceSelfiePath}}",
+                      "description": "image/jpeg or image/png"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/supervisor/attendance",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "supervisor", "attendance"]
+                },
+                "description": "409 if already checked in today. Requires S3 for selfie upload."
+              },
+              "response": []
+            },
+            {
+              "name": "POST Supervisor - Attendance check-out (multipart)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "action",
+                      "value": "check_out",
+                      "type": "text"
+                    },
+                    {
+                      "key": "latitude",
+                      "value": "{{attendanceLat}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "longitude",
+                      "value": "{{attendanceLng}}",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/supervisor/attendance",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "supervisor", "attendance"]
+                },
+                "description": "400 if not checked in; 409 if already checked out."
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Daily Staff Tasks",
       "item": [
         {
@@ -1360,6 +1604,14 @@
     {
       "key": "attendanceSelfiePath",
       "value": ""
+    },
+    {
+      "key": "supervisorEmail",
+      "value": "supervisor@madhuban360.com"
+    },
+    {
+      "key": "supervisorPassword",
+      "value": "Supervisor@123"
     }
   ]
 }

@@ -36,7 +36,8 @@ export async function POST(req: Request) {
     return Response.json({ message: "Unauthorized." }, { status: 401 });
   }
 
-  if (![ROLE_NAMES.ADMIN, ROLE_NAMES.MANAGER, ROLE_NAMES.SUPERVISOR].includes(user.role)) {
+  const allowedRoles: string[] = [ROLE_NAMES.ADMIN, ROLE_NAMES.MANAGER, ROLE_NAMES.SUPERVISOR];
+  if (!allowedRoles.includes(user.role)) {
     return Response.json({ message: "Not allowed." }, { status: 403 });
   }
 

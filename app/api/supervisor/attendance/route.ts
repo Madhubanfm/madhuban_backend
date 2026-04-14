@@ -1,8 +1,8 @@
 import { getAuthUserFromRequest } from "@/lib/auth";
 import { ROLE_NAMES } from "@/lib/constants";
 import { deriveShiftIST, normalizeToDayIST } from "@/lib/date";
-import { prisma } from "@/lib/prisma";
 import { parseDateParam } from "@/lib/request-date";
+import { prisma } from "@/lib/prisma";
 import { buildAttendanceSelfieKey, uploadBufferToS3 } from "@/lib/s3";
 import type { StaffAttendance } from "@prisma/client";
 import { z } from "zod";
@@ -63,7 +63,7 @@ function attendancePayload(row: StaffAttendance | null, workDate: Date) {
 export async function GET(req: Request) {
   const user = await getAuthUserFromRequest(req);
   if (!user) return Response.json({ message: "Unauthorized." }, { status: 401 });
-  if (user.role !== ROLE_NAMES.STAFF) return Response.json({ message: "Not allowed." }, { status: 403 });
+  if (user.role !== ROLE_NAMES.SUPERVISOR) return Response.json({ message: "Not allowed." }, { status: 403 });
 
   const url = new URL(req.url);
   const parsedQuery = querySchema.safeParse({
@@ -93,7 +93,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const user = await getAuthUserFromRequest(req);
   if (!user) return Response.json({ message: "Unauthorized." }, { status: 401 });
-  if (user.role !== ROLE_NAMES.STAFF) return Response.json({ message: "Not allowed." }, { status: 403 });
+  if (user.role !== ROLE_NAMES.SUPERVISOR) return Response.json({ message: "Not allowed." }, { status: 403 });
 
   let form: FormData;
   try {

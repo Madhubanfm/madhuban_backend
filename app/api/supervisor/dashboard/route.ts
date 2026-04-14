@@ -1,20 +1,27 @@
 import { getAuthUserFromRequest } from "@/lib/auth";
 import { ROLE_NAMES } from "@/lib/constants";
-import { deriveShiftIST, normalizeToDayIST } from "@/lib/date";
+import { normalizeToDayIST } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import { parseDateParam } from "@/lib/request-date";
+import { getSupervisorDashboardData } from "@/lib/supervisor-dashboard";
 import { z } from "zod";
 
 const querySchema = z.object({
   date: z.string().optional()
 });
 
+function shiftInProgressFromAttendance(checkInAt: Date | null | undefined, checkOutAt: Date | null | undefined): boolean {
+  if (!checkInAt) return false;
+  if (checkOutAt) return false;
+  return true;
+}
+
 export async function GET(req: Request) {
   const user = await getAuthUserFromRequest(req);
   if (!user) {
     return Response.json({ message: "Unauthorized." }, { status: 401 });
   }
-  if (user.role !== ROLE_NAMES.STAFF) {
+  if (user.role !== ROLE_NAMES.SUPERVISOR) {
     return Response.json({ message: "Not allowed." }, { status: 403 });
   }
 
@@ -35,42 +42,23 @@ export async function GET(req: Request) {
   }
 
   const taskDate = normalizeToDayIST(date);
-  const staffId = user.userId;
+  const now = new Date();
+  const supervisorId = user.userId;
 
-  const [assigned, completed, criticalPendingResult] = await Promise.all([
-    prisma.dailyStaffTask.count({
-      where: { staffId, taskDate }
-    }),
-    prisma.dailyStaffTask.count({
-      where: { staffId, taskDate, status: "COMPLETED" }
-    }),
-    prisma.$queryRaw<{ count: bigint }[]>`
-      SELECT COUNT(*)::bigint AS count
-      FROM "DailyStaffTask" dst
-      JOIN "StaffMasterTask" smt ON smt.id = dst."staffMasterTaskId"
-      JOIN "MasterTask" mt ON mt.id = smt."masterTaskId"
-      WHERE dst."staffId" = ${staffId}
-        AND dst."taskDate" = ${taskDate}
-        AND dst."status" <> 'COMPLETED'
-        AND mt."priority" IN ('HIGH', 'CRITICAL')
-    `
+  const [data, attendance] = await Promise.all([
+    getSupervisorDashboardData(supervisorId, taskDate, now),
+    prisma.staffAttendance.findUnique({
+      where: {
+        staffId_workDate: { staffId: supervisorId, workDate: taskDate }
+      }
+    })
   ]);
-
-  const criticalPending = Number(criticalPendingResult?.[0]?.count ?? BigInt(0));
 
   return Response.json({
     data: {
+      ...data,
       date: taskDate.toISOString(),
-      shift: deriveShiftIST(new Date()),
-      counts: {
-        assigned,
-        completed,
-        remaining: Math.max(assigned - completed, 0)
-      },
-      actionNeeded: {
-        criticalPending
-      }
+      shiftInProgress: shiftInProgressFromAttendance(attendance?.checkInAt, attendance?.checkOutAt)
     }
   });
 }
-
