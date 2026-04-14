@@ -24,6 +24,7 @@ Flow implemented:
 ## Setup
 1. Create `.env` from `.env.example`
    - Set `DATABASE_URL` to your Neon connection string
+   - If calling this API from a different origin (separate frontend), set `CORS_ORIGIN_ALLOWLIST`
 2. Install dependencies:
 ```bash
 npm install
