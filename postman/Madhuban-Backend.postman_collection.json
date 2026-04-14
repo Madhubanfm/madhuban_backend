@@ -599,7 +599,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"aditya padiya\",\n  \"email\": \"padiya@crm.com\",\n  \"phone\": \"8989898989\",\n  \"roleId\": {{roleId}},\n  \"status\": \"Active\",\n  \"department\": \"cleaning\",\n  \"managerId\": {{managerId}}\n}"
+              "raw": "{\n  \"name\": \"aditya padiya\",\n  \"email\": \"padiya@crm.com\",\n  \"phone\": \"8989898989\",\n  \"roleId\": {{roleId}},\n  \"status\": \"Active\",\n  \"department\": \"cleaning\",\n  \"managerId\": {{managerId}},\n  \"password\": \"User@12345\",\n  \"confirmPassword\": \"User@12345\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/users",

@@ -10,6 +10,7 @@ const createUserSchema = z.object({
   role: z.string().min(1).optional(),
   roleId: z.number().int().positive().optional(),
   password: z.string().min(1).optional(),
+  confirmPassword: z.string().min(1).optional(),
   managerId: z.number().int().positive().optional(),
   supervisorId: z.number().int().positive().optional(),
   // Accepted for client compatibility (not stored in DB)
@@ -18,6 +19,11 @@ const createUserSchema = z.object({
   department: z.string().min(1).optional()
 }).refine((data) => data.roleId != null || (data.role != null && data.role.trim().length > 0), {
   message: "Either roleId or role is required."
+}).refine((data) => {
+  if (data.password === undefined) return true; // default password will be applied
+  return data.confirmPassword !== undefined && data.password === data.confirmPassword;
+}, {
+  message: "Password and confirmPassword must match."
 });
 
 function normalizeRoleName(role: string) {
