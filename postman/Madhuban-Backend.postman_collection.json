@@ -1901,6 +1901,173 @@
       ]
     },
     {
+      "name": "Manager",
+      "description": "Requires `Auth - Login (Manager)` (sets `{{token}}`). Endpoint: `GET /api/manager/dashboard` (optional `date`). Aggregates KPIs, zone health, urgent tasks, recent activity across all supervisors/staff under the manager.",
+      "item": [
+        {
+          "name": "Dashboard",
+          "item": [
+            {
+              "name": "GET Manager - Dashboard (today)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/manager/dashboard",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "manager", "dashboard"]
+                },
+                "description": "Manager JWT. Same response shape as supervisor dashboard + `date` + `shiftInProgress`."
+              },
+              "response": []
+            },
+            {
+              "name": "GET Manager - Dashboard (by date)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/manager/dashboard?date={{taskDate}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "manager", "dashboard"],
+                  "query": [
+                    {
+                      "key": "date",
+                      "value": "{{taskDate}}"
+                    }
+                  ]
+                },
+                "description": "Optional `date` (YYYY-MM-DD). IST calendar day normalization."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Profile",
+          "item": [
+            {
+              "name": "GET Manager - Profile",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/manager/profile",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "manager", "profile"]
+                },
+                "description": "Manager JWT. Mirrors supervisor profile shape (profile + badges + account)."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Tasks",
+          "description": "List all daily tasks for a specific supervisor's team (staff under that supervisor). Requires manager JWT and `supervisorId` query param.",
+          "item": [
+            {
+              "name": "GET Manager - Supervisor Tasks (team)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/manager/tasks?supervisorId={{supervisorUserId}}&date={{taskDate}}&filter=all&page=1&limit=20",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "manager", "tasks"],
+                  "query": [
+                    { "key": "supervisorId", "value": "{{supervisorUserId}}" },
+                    { "key": "date", "value": "{{taskDate}}" },
+                    { "key": "filter", "value": "all" },
+                    { "key": "page", "value": "1" },
+                    { "key": "limit", "value": "20" }
+                  ]
+                },
+                "description": "Optional filters: `filter` all|critical|high|done. Pagination: `page`, `limit` (max 100). Returns same shape as staff tasks list + `supervisorId`."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Reports",
+          "description": "Manager Reports → Shift analytics (aggregated across all supervisors/staff under the manager). Uses IST day via `date` (YYYY-MM-DD).",
+          "item": [
+            {
+              "name": "GET Manager - Shift Report (all tabs)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/manager/reports/shift?date={{taskDate}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "manager", "reports", "shift"],
+                  "query": [
+                    {
+                      "key": "date",
+                      "value": "{{taskDate}}"
+                    }
+                  ]
+                },
+                "description": "Returns Overview, Zone, Function, Employee datasets and escalations in one payload."
+              },
+              "response": []
+            },
+            {
+              "name": "GET Manager - Shift Report Employee Detail",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/manager/reports/shift/employees/{{staffId}}?date={{taskDate}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "manager", "reports", "shift", "employees", "{{staffId}}"],
+                  "query": [
+                    {
+                      "key": "date",
+                      "value": "{{taskDate}}"
+                    }
+                  ]
+                },
+                "description": "Returns shift logs for one staff member (must belong to manager org). Uses existing `{{staffId}}` environment variable."
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Daily Staff Tasks",
       "item": [
         {
