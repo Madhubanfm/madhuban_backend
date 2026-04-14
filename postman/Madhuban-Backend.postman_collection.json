@@ -584,6 +584,136 @@
           "response": []
         },
         {
+          "name": "Users - Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"aditya padiya\",\n  \"email\": \"padiya@crm.com\",\n  \"phone\": \"8989898989\",\n  \"role\": \"Supervisor\",\n  \"status\": \"Active\",\n  \"department\": \"cleaning\",\n  \"managerId\": {{managerId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            },
+            "description": "Creates a user. Note: `phone`, `status`, `department` are accepted but not stored in DB (current schema). For role=supervisor you can optionally pass `managerId`. For role=staff you can optionally pass `supervisorId`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let data = {};",
+                  "try {",
+                  "  data = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "if (data.data && data.data.id) {",
+                  "  pm.environment.set(\"userId\", String(data.data.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Users - Get User By Id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Users - Update User (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Aditya Padiya\",\n  \"email\": \"padiya@crm.com\",\n  \"role\": \"supervisor\",\n  \"managerId\": {{managerId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Users - Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "Users - Get Managers",
           "request": {
             "method": "GET",
@@ -1362,7 +1492,7 @@
     },
     {
       "name": "Supervisor",
-      "description": "Requires `Auth - Login (Supervisor)` (sets `{{token}}`). Reuses `{{taskDate}}`, `{{attendanceLat}}`, `{{attendanceLng}}`, `{{attendanceSelfiePath}}` like Staff attendance.\n\nEndpoints: `GET /api/supervisor/dashboard` (optional `date`), `GET/POST /api/supervisor/attendance`, `GET /api/supervisor/reviews` (list), `GET /api/supervisor/reviews/:dailyTaskId` (detail), `POST /api/supervisor/reviews/:dailyTaskId/decision` (approve/send_back).",
+      "description": "Requires `Auth - Login (Supervisor)` (sets `{{token}}`). Reuses `{{taskDate}}`, `{{attendanceLat}}`, `{{attendanceLng}}`, `{{attendanceSelfiePath}}` like Staff attendance.\n\nEndpoints: `GET /api/supervisor/dashboard` (optional `date`), `GET/POST /api/supervisor/attendance`, `GET /api/supervisor/reviews` (list), `GET /api/supervisor/reviews/:dailyTaskId` (detail), `POST /api/supervisor/reviews/:dailyTaskId/decision` (approve/send_back), `GET /api/supervisor/reports/shift` (Reports → Shift analytics).",
       "item": [
         {
           "name": "Dashboard",
@@ -1543,6 +1673,63 @@
                   "path": ["api", "supervisor", "attendance"]
                 },
                 "description": "400 if not checked in; 409 if already checked out."
+              },
+              "response": []
+            }
+          ]
+        }
+        ,
+        {
+          "name": "Reports",
+          "description": "Supervisor Reports → Shift analytics. Uses IST day via `date` (YYYY-MM-DD).",
+          "item": [
+            {
+              "name": "GET Supervisor - Shift Report (all tabs)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/supervisor/reports/shift?date={{taskDate}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "supervisor", "reports", "shift"],
+                  "query": [
+                    {
+                      "key": "date",
+                      "value": "{{taskDate}}"
+                    }
+                  ]
+                },
+                "description": "Returns Overview, Zone, Function, Employee datasets in one payload."
+              },
+              "response": []
+            },
+            {
+              "name": "GET Supervisor - Shift Report Employee Detail",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/supervisor/reports/shift/employees/{{staffId}}?date={{taskDate}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "supervisor", "reports", "shift", "employees", "{{staffId}}"],
+                  "query": [
+                    {
+                      "key": "date",
+                      "value": "{{taskDate}}"
+                    }
+                  ]
+                },
+                "description": "Returns recent shift logs for one staff member (must belong to supervisor)."
               },
               "response": []
             }
