@@ -7,7 +7,8 @@ import { z } from "zod";
 const createUserSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
-  role: z.string().min(1),
+  role: z.string().min(1).optional(),
+  roleId: z.number().int().positive().optional(),
   password: z.string().min(1).optional(),
   managerId: z.number().int().positive().optional(),
   supervisorId: z.number().int().positive().optional(),
@@ -15,6 +16,8 @@ const createUserSchema = z.object({
   phone: z.string().min(1).optional(),
   status: z.string().min(1).optional(),
   department: z.string().min(1).optional()
+}).refine((data) => data.roleId != null || (data.role != null && data.role.trim().length > 0), {
+  message: "Either roleId or role is required."
 });
 
 function normalizeRoleName(role: string) {
@@ -101,11 +104,14 @@ export async function POST(req: Request) {
     return Response.json({ message: "Invalid payload." }, { status: 400 });
   }
 
-  const roleName = normalizeRoleName(parsed.data.role);
-  const role = await prisma.role.findUnique({ where: { name: roleName } });
+  const role =
+    parsed.data.roleId != null
+      ? await prisma.role.findUnique({ where: { id: parsed.data.roleId } })
+      : await prisma.role.findUnique({ where: { name: normalizeRoleName(parsed.data.role ?? "") } });
   if (!role) {
     return Response.json({ message: "Invalid role." }, { status: 400 });
   }
+  const roleName = normalizeRoleName(role.name);
 
   const managerId = parsed.data.managerId;
   const supervisorId = parsed.data.supervisorId;

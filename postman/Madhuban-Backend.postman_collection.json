@@ -599,7 +599,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"aditya padiya\",\n  \"email\": \"padiya@crm.com\",\n  \"phone\": \"8989898989\",\n  \"role\": \"Supervisor\",\n  \"status\": \"Active\",\n  \"department\": \"cleaning\",\n  \"managerId\": {{managerId}}\n}"
+              "raw": "{\n  \"name\": \"aditya padiya\",\n  \"email\": \"padiya@crm.com\",\n  \"phone\": \"8989898989\",\n  \"roleId\": {{roleId}},\n  \"status\": \"Active\",\n  \"department\": \"cleaning\",\n  \"managerId\": {{managerId}}\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/users",
@@ -611,7 +611,7 @@
                 "users"
               ]
             },
-            "description": "Creates a user. Note: `phone`, `status`, `department` are accepted but not stored in DB (current schema). For role=supervisor you can optionally pass `managerId`. For role=staff you can optionally pass `supervisorId`."
+            "description": "Creates a user. Provide `roleId` (preferred) or `role` (fallback). Note: `phone`, `status`, `department` are accepted but not stored in DB (current schema). For role=supervisor you can optionally pass `managerId`. For role=staff you can optionally pass `supervisorId`."
           },
           "event": [
             {
