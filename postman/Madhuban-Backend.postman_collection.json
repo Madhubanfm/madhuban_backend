@@ -2158,6 +2158,141 @@
           ]
         },
         {
+          "name": "Attendance",
+          "description": "`GET /api/manager/attendance` — optional `date` (YYYY-MM-DD). `POST` — multipart: `action` check_in | check_out, `latitude`, `longitude`; check-in requires `selfie` (jpeg/png). Same `StaffAttendance` row keyed by manager user id.",
+          "item": [
+            {
+              "name": "GET Manager - Attendance (today)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/manager/attendance",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "manager", "attendance"]
+                },
+                "description": "Returns `phase`: NOT_CHECKED_IN | ACTIVE | COMPLETED, check-in/out times, GPS, `shift`."
+              },
+              "response": []
+            },
+            {
+              "name": "GET Manager - Attendance (by date)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/manager/attendance?date={{taskDate}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "manager", "attendance"],
+                  "query": [
+                    {
+                      "key": "date",
+                      "value": "{{taskDate}}"
+                    }
+                  ]
+                },
+                "description": "Attendance for `taskDate` (YYYY-MM-DD)."
+              },
+              "response": []
+            },
+            {
+              "name": "POST Manager - Attendance check-in (multipart)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "action",
+                      "value": "check_in",
+                      "type": "text",
+                      "description": "Required"
+                    },
+                    {
+                      "key": "latitude",
+                      "value": "{{attendanceLat}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "longitude",
+                      "value": "{{attendanceLng}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "selfie",
+                      "type": "file",
+                      "src": "{{attendanceSelfiePath}}",
+                      "description": "image/jpeg or image/png"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/manager/attendance",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "manager", "attendance"]
+                },
+                "description": "409 if already checked in today. Requires S3 for selfie upload."
+              },
+              "response": []
+            },
+            {
+              "name": "POST Manager - Attendance check-out (multipart)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "action",
+                      "value": "check_out",
+                      "type": "text"
+                    },
+                    {
+                      "key": "latitude",
+                      "value": "{{attendanceLat}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "longitude",
+                      "value": "{{attendanceLng}}",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/manager/attendance",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "manager", "attendance"]
+                },
+                "description": "400 if not checked in; 409 if already checked out."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
           "name": "Tasks",
           "description": "List all daily tasks for a specific supervisor's team (staff under that supervisor). Requires manager JWT and `supervisorId` query param.",
           "item": [
