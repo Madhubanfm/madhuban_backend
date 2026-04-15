@@ -64,6 +64,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ dailyTaskId: s
       }
     });
 
+    await tx.dailyStaffTask.update({
+      where: { id },
+      data: {
+        status: nextStatus,
+        completedAt: nextStatus === "APPROVED" ? decidedAt : null
+      },
+      select: { id: true }
+    });
+
     return { kind: "ok" as const, approval: updated };
   });
 

@@ -62,7 +62,7 @@ function buildWhereSql(filter: z.infer<typeof filterSchema> | undefined) {
     return Prisma.sql``;
   }
   if (filter === "done") {
-    return Prisma.sql` AND dst."status" = 'COMPLETED' `;
+    return Prisma.sql` AND (dst."status" = 'COMPLETED' OR dst."status" = 'APPROVED') `;
   }
   if (filter === "critical") {
     return Prisma.sql` AND mt."priority" = 'CRITICAL' `;
@@ -169,7 +169,7 @@ export async function GET(req: Request) {
       prisma.$queryRaw<{ count: bigint }[]>`
         SELECT COUNT(*)::bigint AS count
         ${baseFromSql}
-          AND dst."status" = 'COMPLETED'
+          AND (dst."status" = 'COMPLETED' OR dst."status" = 'APPROVED')
       `
     ]);
 
