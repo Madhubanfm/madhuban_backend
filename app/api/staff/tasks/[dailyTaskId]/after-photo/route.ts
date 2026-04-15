@@ -73,41 +73,47 @@ export async function POST(req: Request, ctx: { params: Promise<{ dailyTaskId: s
   const key = buildTaskPhotoKey({ dailyTaskId: id, kind: "after", ext });
   const afterPhotoUrl = await uploadBufferToS3({ key, contentType: photo.type, body: buf });
 
-  const approvalRows = await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw(
-      Prisma.sql`
-        UPDATE "DailyStaffTask"
-        SET "afterPhotoUrl" = ${afterPhotoUrl}, "status" = 'IN_REVIEW', "updatedAt" = NOW()
-        WHERE id = ${id} AND "staffId" = ${user.userId}
-      `
-    );
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedTask = await tx.dailyStaffTask.update({
+      where: { id },
+      data: {
+        afterPhotoUrl,
+        status: "IN_REVIEW"
+      },
+      select: { id: true, status: true, afterPhotoUrl: true }
+    });
 
-    return tx.$queryRaw<Array<{ id: number; status: string; supervisorId: number }>>(
-      Prisma.sql`
-        INSERT INTO "TaskApproval" ("dailyStaffTaskId", "staffId", "supervisorId", "status")
-        VALUES (${id}, ${task.staffId}, ${supervisorId}, 'PENDING')
-        ON CONFLICT ("dailyStaffTaskId") DO UPDATE SET
-          "supervisorId" = EXCLUDED."supervisorId",
-          "status" = 'PENDING',
-          "decisionNote" = NULL,
-          "decidedAt" = NULL
-        RETURNING id, "status", "supervisorId"
-      `
-    );
+    const approval = await tx.taskApproval.upsert({
+      where: { dailyStaffTaskId: id },
+      update: {
+        supervisorId,
+        status: "PENDING",
+        decisionNote: null,
+        decidedAt: null
+      },
+      create: {
+        dailyStaffTaskId: id,
+        staffId: task.staffId,
+        supervisorId,
+        status: "PENDING"
+      },
+      select: { id: true, status: true, supervisorId: true }
+    });
+
+    return { updatedTask, approval };
   });
-
-  const approval = approvalRows[0];
-  if (!approval) {
-    return Response.json({ message: "Failed to create approval." }, { status: 500 });
-  }
 
   return Response.json({
     data: {
-      afterPhotoUrl,
+      afterPhotoUrl: result.updatedTask.afterPhotoUrl,
+      task: {
+        id: result.updatedTask.id,
+        status: result.updatedTask.status
+      },
       approval: {
-        id: approval.id,
-        status: approval.status,
-        supervisorId: approval.supervisorId
+        id: result.approval.id,
+        status: result.approval.status,
+        supervisorId: result.approval.supervisorId
       }
     }
   });
