@@ -1055,6 +1055,59 @@
       ]
     },
     {
+      "name": "Admin",
+      "description": "Requires `Auth - Login (Admin)` (sets `{{token}}`). Endpoint: `GET /api/admin/dashboard` (optional `date`, optional `propertyId`). Returns KPI counts + attendance summary. If `propertyId` is provided, attendance is inferred from staff who have tasks in that property for the day.",
+      "item": [
+        {
+          "name": "Dashboard",
+          "item": [
+            {
+              "name": "GET Admin - Dashboard (today)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/dashboard",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "dashboard"]
+                },
+                "description": "Admin JWT. Optional query params: `date` (YYYY-MM-DD), `propertyId` (number)."
+              },
+              "response": []
+            },
+            {
+              "name": "GET Admin - Dashboard (by date + property)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/dashboard?date={{taskDate}}&propertyId={{propertyId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "dashboard"],
+                  "query": [
+                    { "key": "date", "value": "{{taskDate}}" },
+                    { "key": "propertyId", "value": "{{propertyId}}" }
+                  ]
+                },
+                "description": "Admin JWT. Uses `taskDate` and `propertyId` from environment."
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Staff",
       "description": "Requires `Auth - Login (Staff)` (sets `{{token}}`). Optional env: `taskDate`, `dailyTaskId`, `beforePhotoPath`, `afterPhotoPath`, `attendanceSelfiePath`, `attendanceLat`, `attendanceLng` for local file paths / sample coordinates.\n\nEndpoints: `GET /api/staff/dashboard`, `GET /api/staff/attendance`, `POST /api/staff/attendance` (check-in / check-out), `GET /api/staff/tasks`, `POST/.../before-photo`, `POST/.../after-photo` (creates supervisor approval).",
       "item": [

@@ -86,6 +86,13 @@ Request:
 ### Supervisor Profile
 `GET /api/supervisor/profile`
 
+### Admin Dashboard
+`GET /api/admin/dashboard` (Bearer token, admin only)
+
+Optional query params:
+- `date` (YYYY-MM-DD or ISO date)
+- `propertyId` (number; filters tasks + attendance to that property)
+
 ### Master Tasks (admin create)
 - `GET /api/tasks`
 - `POST /api/tasks` (Bearer token, admin only)
