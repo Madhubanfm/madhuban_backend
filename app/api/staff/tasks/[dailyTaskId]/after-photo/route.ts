@@ -77,7 +77,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ dailyTaskId: s
     await tx.$executeRaw(
       Prisma.sql`
         UPDATE "DailyStaffTask"
-        SET "afterPhotoUrl" = ${afterPhotoUrl}, "updatedAt" = NOW()
+        SET "afterPhotoUrl" = ${afterPhotoUrl}, "status" = 'IN_REVIEW', "updatedAt" = NOW()
         WHERE id = ${id} AND "staffId" = ${user.userId}
       `
     );
