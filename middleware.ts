@@ -4,6 +4,10 @@ import type { NextRequest } from "next/server";
 const DEFAULT_ALLOWED_METHODS = "GET,POST,PUT,PATCH,DELETE,OPTIONS";
 const DEFAULT_ALLOWED_HEADERS = "Content-Type, Authorization";
 
+function isCredentialsAllowed() {
+  return (process.env.CORS_ALLOW_CREDENTIALS ?? "").toLowerCase() === "true";
+}
+
 function getAllowedOrigin(req: NextRequest): string {
   const requestOrigin = req.headers.get("origin");
   if (!requestOrigin) return "*";
@@ -13,7 +17,11 @@ function getAllowedOrigin(req: NextRequest): string {
     .map((s) => s.trim())
     .filter(Boolean);
 
-  if (allowList.length === 0) return "*";
+  // When credentials are enabled, browsers reject `Access-Control-Allow-Origin: *`.
+  // In that case, echo the request origin (or an allowlisted origin).
+  if (allowList.length === 0) {
+    return isCredentialsAllowed() ? requestOrigin : "*";
+  }
   return allowList.includes(requestOrigin) ? requestOrigin : allowList[0]!;
 }
 
@@ -29,6 +37,9 @@ function withCorsHeaders(res: NextResponse, origin: string, req?: NextRequest) {
     "Access-Control-Allow-Headers",
     req?.headers.get("access-control-request-headers") ?? DEFAULT_ALLOWED_HEADERS
   );
+  if (isCredentialsAllowed() && origin !== "*") {
+    res.headers.set("Access-Control-Allow-Credentials", "true");
+  }
   // Avoid caching a response that varies by Origin
   res.headers.append("Vary", "Origin");
   return res;
