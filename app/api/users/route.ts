@@ -122,10 +122,49 @@ export async function POST(req: Request) {
   const managerId = parsed.data.managerId;
   const supervisorId = parsed.data.supervisorId;
 
-  if (roleName === ROLE_NAMES.MANAGER || roleName === ROLE_NAMES.ADMIN) {
+  // Role assignment rules:
+  // - roleId 2: manager has no manager/supervisor
+  // - roleId 3: supervisor must have managerId
+  // - roleId 4: staff must have supervisorId (frontend may send it as managerId for compatibility)
+  //
+  // Note: We enforce by roleName (canonical) and also support the numeric mapping above when roleId is provided.
+  const roleId = parsed.data.roleId;
+  const isRoleId2 = roleId === 2;
+  const isRoleId3 = roleId === 3;
+  const isRoleId4 = roleId === 4;
+
+  if (
+    roleName === ROLE_NAMES.ADMIN ||
+    roleName === ROLE_NAMES.MANAGER ||
+    isRoleId2
+  ) {
     if (managerId != null || supervisorId != null) {
       return Response.json(
         { message: "managerId/supervisorId are not allowed for this role." },
+        { status: 400 }
+      );
+    }
+  }
+
+  if (roleName === ROLE_NAMES.SUPERVISOR || isRoleId3) {
+    if (supervisorId != null) {
+      return Response.json(
+        { message: "supervisorId is not allowed for supervisor role. Use managerId." },
+        { status: 400 }
+      );
+    }
+    if (managerId == null) {
+      return Response.json({ message: "managerId is required for supervisor role." }, { status: 400 });
+    }
+  }
+
+  // For staff, accept either supervisorId (preferred) or managerId as an alias for supervisorId.
+  const staffSupervisorId = supervisorId ?? (roleName === ROLE_NAMES.STAFF || isRoleId4 ? managerId : undefined);
+
+  if (roleName === ROLE_NAMES.STAFF || isRoleId4) {
+    if (staffSupervisorId == null) {
+      return Response.json(
+        { message: "supervisorId is required for staff role." },
         { status: 400 }
       );
     }
@@ -141,8 +180,8 @@ export async function POST(req: Request) {
         email: parsed.data.email.toLowerCase(),
         passwordHash,
         roleId: role.id,
-        ...(roleName === ROLE_NAMES.SUPERVISOR && managerId ? { managerId } : {}),
-        ...(roleName === ROLE_NAMES.STAFF && supervisorId ? { supervisorId } : {})
+        ...(roleName === ROLE_NAMES.SUPERVISOR || isRoleId3 ? { managerId: managerId ?? null } : {}),
+        ...(roleName === ROLE_NAMES.STAFF || isRoleId4 ? { supervisorId: staffSupervisorId ?? null } : {})
       },
       include: {
         role: true,

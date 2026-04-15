@@ -145,3 +145,20 @@ This script:
 - schedules every day at 00:00 (server timezone)
 
 For production, use your process manager (PM2/systemd/Docker cron) to keep this process alive.
+
+## Excel Import Scripts
+
+### Import Zones (HO / Floor 1)
+```bash
+npm run zones:import:excel -- "FM HO (1).xlsx"
+```
+
+### Import Master Tasks (unique per zone)
+```bash
+npm run tasks:import:excel -- "FM HO (1).xlsx"
+```
+
+Optional env vars:
+- `PROPERTY_NAME` (default `HO`)
+- `FLOOR_NO` (default `1`)
+- `STRICT_ZONES` (default `false`; when `true`, fails if Excel contains unknown zones)

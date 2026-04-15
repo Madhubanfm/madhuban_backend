@@ -634,6 +634,133 @@
           "response": []
         },
         {
+          "name": "Users - Create Manager (roleId=2)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Manager Test\",\n  \"email\": \"manager_test@crm.com\",\n  \"phone\": \"8989898989\",\n  \"roleId\": 2,\n  \"status\": \"Active\",\n  \"department\": \"cleaning\",\n  \"password\": \"User@12345\",\n  \"confirmPassword\": \"User@12345\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users"]
+            },
+            "description": "Creates a manager (roleId=2). Backend rejects managerId/supervisorId for this role."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let data = {};",
+                  "try { data = pm.response.json(); } catch (e) {}",
+                  "if (data.data && data.data.id) {",
+                  "  pm.environment.set(\"managerId\", String(data.data.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Users - Create Supervisor (roleId=3)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Supervisor Test\",\n  \"email\": \"supervisor_test@crm.com\",\n  \"phone\": \"8989898989\",\n  \"roleId\": 3,\n  \"status\": \"Active\",\n  \"department\": \"cleaning\",\n  \"managerId\": {{managerId}},\n  \"password\": \"User@12345\",\n  \"confirmPassword\": \"User@12345\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users"]
+            },
+            "description": "Creates a supervisor (roleId=3). `managerId` is required."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let data = {};",
+                  "try { data = pm.response.json(); } catch (e) {}",
+                  "if (data.data && data.data.id) {",
+                  "  pm.environment.set(\"supervisorId\", String(data.data.id));",
+                  "  pm.environment.set(\"supervisorUserId\", String(data.data.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Users - Create Staff (roleId=4)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Staff Test\",\n  \"email\": \"staff_test@crm.com\",\n  \"phone\": \"8989898989\",\n  \"roleId\": 4,\n  \"status\": \"Active\",\n  \"department\": \"cleaning\",\n  \"supervisorId\": {{supervisorId}},\n  \"password\": \"User@12345\",\n  \"confirmPassword\": \"User@12345\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users"]
+            },
+            "description": "Creates a staff user (roleId=4). `supervisorId` is required (backend also accepts managerId as alias)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let data = {};",
+                  "try { data = pm.response.json(); } catch (e) {}",
+                  "if (data.data && data.data.id) {",
+                  "  pm.environment.set(\"staffId\", String(data.data.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
           "name": "Users - Get User By Id",
           "request": {
             "method": "GET",

@@ -13,7 +13,9 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "db:fix-master-task-sequence": "prisma db execute --schema prisma/schema.prisma --file prisma/sql/fix_master_task_id_sequence.sql",
     "db:setup": "npm run prisma:generate && npm run prisma:migrate -- --name init && npm run prisma:seed",
-    "cron:run": "tsx scripts/run-daily-task-cron.ts"
+    "cron:run": "tsx scripts/run-daily-task-cron.ts",
+    "zones:import:excel": "tsx scripts/import-zones-from-excel.ts",
+    "tasks:import:excel": "tsx scripts/import-master-tasks-from-excel.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1029.0",
@@ -22,6 +24,7 @@
     "jose": "^5.9.6",
     "next": "15.2.4",
     "node-cron": "^4.0.7",
+    "xlsx": "^0.18.5",
     "zod": "^3.24.2"
   },
   "devDependencies": {
