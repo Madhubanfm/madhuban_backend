@@ -9,7 +9,6 @@ import { z } from "zod";
 const filterSchema = z.enum(["all", "critical", "high", "done"]);
 
 const querySchema = z.object({
-  supervisorId: z.coerce.number().int().min(1).optional(),
   date: z.string().optional(),
   filter: filterSchema.optional(),
   page: z.coerce.number().int().min(1).optional(),
@@ -52,7 +51,6 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const parsed = querySchema.safeParse({
-    supervisorId: url.searchParams.get("supervisorId") ?? undefined,
     date: url.searchParams.get("date") ?? undefined,
     filter: url.searchParams.get("filter") ?? undefined,
     page: url.searchParams.get("page") ?? undefined,
@@ -70,40 +68,17 @@ export async function GET(req: Request) {
   }
 
   const managerId = user.userId;
-  const supervisorId = parsed.data.supervisorId;
   const taskDate = normalizeToDayIST(date);
   const filter = parsed.data.filter ?? "all";
   const page = parsed.data.page ?? 1;
   const limit = parsed.data.limit ?? 20;
   const offset = (page - 1) * limit;
 
-  // If supervisorId is provided: validate it's a supervisor under this manager.
-  // If not provided: include tasks across all supervisors under this manager.
-  let supervisorIds: number[] = [];
-  if (typeof supervisorId === "number") {
-    const supervisor = await prisma.user.findUnique({
-      where: { id: supervisorId },
-      select: {
-        id: true,
-        managerId: true,
-        role: { select: { name: true } }
-      }
-    });
-    if (!supervisor) return Response.json({ message: "Supervisor not found." }, { status: 404 });
-    if (supervisor.role?.name !== ROLE_NAMES.SUPERVISOR) {
-      return Response.json({ message: "Invalid supervisorId." }, { status: 400 });
-    }
-    if (supervisor.managerId !== managerId) {
-      return Response.json({ message: "Not allowed." }, { status: 403 });
-    }
-    supervisorIds = [supervisorId];
-  } else {
-    const supervisors = await prisma.user.findMany({
-      where: { managerId, role: { name: ROLE_NAMES.SUPERVISOR } },
-      select: { id: true }
-    });
-    supervisorIds = supervisors.map((s) => s.id);
-  }
+  const supervisors = await prisma.user.findMany({
+    where: { managerId, role: { name: ROLE_NAMES.SUPERVISOR } },
+    select: { id: true }
+  });
+  const supervisorIds = supervisors.map((s) => s.id);
 
   const filterSql = buildWhereSql(filter);
 
@@ -111,8 +86,6 @@ export async function GET(req: Request) {
     return Response.json({
       data: {
         date: taskDate.toISOString(),
-        supervisorId: supervisorId ?? null,
-        supervisorIds: [],
         filter,
         counts: { all: 0, critical: 0, high: 0, done: 0 },
         progress: { done: 0, total: 0, percent: 0 },
@@ -199,8 +172,6 @@ export async function GET(req: Request) {
   return Response.json({
     data: {
       date: taskDate.toISOString(),
-      supervisorId: supervisorId ?? null,
-      supervisorIds,
       filter,
       counts: {
         all: allCount,
