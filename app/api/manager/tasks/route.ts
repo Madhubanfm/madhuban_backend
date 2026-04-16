@@ -7,11 +7,13 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 const filterSchema = z.enum(["all", "critical", "high", "done"]);
+const statusSchema = z.enum(["pending", "in_review", "approved", "rejected"]);
 
 const querySchema = z.object({
   supervisorId: z.coerce.number().int().min(1).optional(),
   date: z.string().optional(),
   filter: filterSchema.optional(),
+  status: statusSchema.optional(),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional()
 });
@@ -45,6 +47,15 @@ function buildWhereSql(filter: z.infer<typeof filterSchema> | undefined) {
   return Prisma.sql``;
 }
 
+function buildStatusSql(status: z.infer<typeof statusSchema> | undefined) {
+  if (!status) return Prisma.sql``;
+  if (status === "pending") return Prisma.sql` AND dst."status" = 'PENDING' `;
+  if (status === "in_review") return Prisma.sql` AND dst."status" = 'IN_REVIEW' `;
+  if (status === "approved") return Prisma.sql` AND dst."status" = 'APPROVED' `;
+  if (status === "rejected") return Prisma.sql` AND dst."status" = 'REJECTED' `;
+  return Prisma.sql``;
+}
+
 export async function GET(req: Request) {
   const user = await getAuthUserFromRequest(req);
   if (!user) return Response.json({ message: "Unauthorized." }, { status: 401 });
@@ -55,6 +66,7 @@ export async function GET(req: Request) {
     supervisorId: url.searchParams.get("supervisorId") ?? undefined,
     date: url.searchParams.get("date") ?? undefined,
     filter: url.searchParams.get("filter") ?? undefined,
+    status: url.searchParams.get("status") ?? undefined,
     page: url.searchParams.get("page") ?? undefined,
     limit: url.searchParams.get("limit") ?? undefined
   });
@@ -73,6 +85,7 @@ export async function GET(req: Request) {
   const supervisorId = parsed.data.supervisorId;
   const taskDate = normalizeToDayIST(date);
   const filter = parsed.data.filter ?? "all";
+  const status = parsed.data.status;
   const page = parsed.data.page ?? 1;
   const limit = parsed.data.limit ?? 20;
   const offset = (page - 1) * limit;
@@ -106,6 +119,7 @@ export async function GET(req: Request) {
   }
 
   const filterSql = buildWhereSql(filter);
+  const statusSql = buildStatusSql(status);
 
   if (supervisorIds.length === 0) {
     return Response.json({
@@ -114,6 +128,7 @@ export async function GET(req: Request) {
         supervisorId: supervisorId ?? null,
         supervisorIds: [],
         filter,
+        status: status ?? null,
         counts: { all: 0, critical: 0, high: 0, done: 0 },
         progress: { done: 0, total: 0, percent: 0 },
         tasks: [],
@@ -160,6 +175,7 @@ export async function GET(req: Request) {
           f."floorNo" AS "floorNo"
         ${baseFromSql}
         ${filterSql}
+        ${statusSql}
         ORDER BY mt."startTime" ASC NULLS LAST, mt.id ASC, dst.id DESC
         LIMIT ${limit} OFFSET ${offset}
       `,
@@ -167,24 +183,29 @@ export async function GET(req: Request) {
         SELECT COUNT(*)::bigint AS count
         ${baseFromSql}
         ${filterSql}
+        ${statusSql}
       `,
       prisma.$queryRaw<{ count: bigint }[]>`
         SELECT COUNT(*)::bigint AS count
         ${baseFromSql}
+        ${statusSql}
       `,
       prisma.$queryRaw<{ count: bigint }[]>`
         SELECT COUNT(*)::bigint AS count
         ${baseFromSql}
+        ${statusSql}
           AND mt."priority" = 'CRITICAL'
       `,
       prisma.$queryRaw<{ count: bigint }[]>`
         SELECT COUNT(*)::bigint AS count
         ${baseFromSql}
+        ${statusSql}
           AND mt."priority" = 'HIGH'
       `,
       prisma.$queryRaw<{ count: bigint }[]>`
         SELECT COUNT(*)::bigint AS count
         ${baseFromSql}
+        ${statusSql}
           AND dst."status" = 'COMPLETED'
       `
     ]);
@@ -202,6 +223,7 @@ export async function GET(req: Request) {
       supervisorId: supervisorId ?? null,
       supervisorIds,
       filter,
+      status: status ?? null,
       counts: {
         all: allCount,
         critical: criticalCount,

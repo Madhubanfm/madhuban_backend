@@ -2293,6 +2293,31 @@
           ]
         },
         {
+          "name": "Supervisors",
+          "description": "List supervisors that report to the logged-in manager (User.managerId = manager.id). Requires manager JWT.",
+          "item": [
+            {
+              "name": "GET Manager - Supervisors",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/manager/supervisors",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "manager", "supervisors"]
+                },
+                "description": "Returns supervisors with `staffCount` under each supervisor."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
           "name": "Tasks",
           "description": "List all daily tasks for a specific supervisor's team (staff under that supervisor). Requires manager JWT and `supervisorId` query param.",
           "item": [
@@ -2307,18 +2332,19 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{baseUrl}}/api/manager/tasks?supervisorId={{supervisorUserId}}&date={{taskDate}}&filter=all&page=1&limit=20",
+                  "raw": "{{baseUrl}}/api/manager/tasks?supervisorId={{supervisorUserId}}&date={{taskDate}}&filter=all&status={{taskStatus}}&page=1&limit=20",
                   "host": ["{{baseUrl}}"],
                   "path": ["api", "manager", "tasks"],
                   "query": [
                     { "key": "supervisorId", "value": "{{supervisorUserId}}" },
                     { "key": "date", "value": "{{taskDate}}" },
                     { "key": "filter", "value": "all" },
+                    { "key": "status", "value": "{{taskStatus}}" },
                     { "key": "page", "value": "1" },
                     { "key": "limit", "value": "20" }
                   ]
                 },
-                "description": "Optional filters: `filter` all|critical|high|done. Pagination: `page`, `limit` (max 100). Returns same shape as staff tasks list + `supervisorId`."
+                "description": "Optional filters: `filter` all|critical|high|done, `status` pending|in_review|approved|rejected. Pagination: `page`, `limit` (max 100). Returns same shape as staff tasks list + `supervisorId`."
               },
               "response": []
             }
@@ -2481,6 +2507,10 @@
     },
     {
       "key": "attendanceSelfiePath",
+      "value": ""
+    },
+    {
+      "key": "taskStatus",
       "value": ""
     },
     {
