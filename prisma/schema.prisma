@@ -20,6 +20,7 @@ model User {
   name              String
   email             String            @unique
   passwordHash      String
+  passwordEncrypted String?
   roleId            Int
   role              Role              @relation(fields: [roleId], references: [id])
   managerId         Int?

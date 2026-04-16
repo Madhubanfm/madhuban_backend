@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { ROLE_NAMES } from "@/lib/constants";
 import { hashPassword } from "@/lib/auth";
+import { decryptPassword, encryptPassword } from "@/lib/password-encryption";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
@@ -50,6 +51,7 @@ function serializeUser(u: {
   name: string;
   email: string;
   passwordHash: string;
+  passwordEncrypted?: string | null;
   createdAt: Date;
   role: { name: string };
   manager: { id: number; name: string; email: string } | null;
@@ -59,7 +61,7 @@ function serializeUser(u: {
     id: u.id,
     name: u.name,
     email: u.email,
-    password: u.passwordHash,
+    password: u.passwordEncrypted ? decryptPassword(u.passwordEncrypted) : null,
     role: u.role.name,
     manager: u.manager,
     supervisor: u.supervisor,
@@ -174,17 +176,19 @@ export async function POST(req: Request) {
 
   const passwordPlain = parsed.data.password ?? defaultPasswordForRole(roleName);
   const passwordHash = await hashPassword(passwordPlain);
+  const passwordEncrypted = encryptPassword(passwordPlain);
 
   try {
     const created = await prisma.user.create({
-      data: {
+      data: ({
         name: parsed.data.name.trim(),
         email: parsed.data.email.toLowerCase(),
         passwordHash,
+        passwordEncrypted,
         roleId: role.id,
         ...(roleName === ROLE_NAMES.SUPERVISOR || isRoleId3 ? { managerId: managerId ?? null } : {}),
         ...(roleName === ROLE_NAMES.STAFF || isRoleId4 ? { supervisorId: staffSupervisorId ?? null } : {})
-      },
+      } as any),
       include: {
         role: true,
         manager: { select: { id: true, name: true, email: true } },

@@ -1,5 +1,6 @@
 import { getAuthUserFromRequest, hashPassword } from "@/lib/auth";
 import { ROLE_NAMES } from "@/lib/constants";
+import { encryptPassword } from "@/lib/password-encryption";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -47,11 +48,12 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
   }
 
   const passwordHash = await hashPassword(parsed.data.password);
+  const passwordEncrypted = encryptPassword(parsed.data.password);
 
   try {
     await prisma.user.update({
       where: { id },
-      data: { passwordHash }
+      data: ({ passwordHash, passwordEncrypted } as any)
     });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {

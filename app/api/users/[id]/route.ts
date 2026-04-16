@@ -1,5 +1,6 @@
 import { ROLE_NAMES } from "@/lib/constants";
 import { hashPassword } from "@/lib/auth";
+import { decryptPassword, encryptPassword } from "@/lib/password-encryption";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -36,6 +37,7 @@ function serializeUser(u: {
   name: string;
   email: string;
   passwordHash: string;
+  passwordEncrypted?: string | null;
   createdAt: Date;
   updatedAt: Date;
   role: { name: string };
@@ -46,7 +48,7 @@ function serializeUser(u: {
     id: u.id,
     name: u.name,
     email: u.email,
-    password: u.passwordHash,
+    password: u.passwordEncrypted ? decryptPassword(u.passwordEncrypted) : null,
     role: u.role.name,
     manager: u.manager,
     supervisor: u.supervisor,
@@ -138,6 +140,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
   if (parsed.data.password !== undefined) {
     data.passwordHash = await hashPassword(parsed.data.password);
+    (data as any).passwordEncrypted = encryptPassword(parsed.data.password);
   }
 
   // Ensure relational fields are consistent with the final role.
