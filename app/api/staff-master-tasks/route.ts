@@ -1,5 +1,6 @@
 import { getAuthUserFromRequest } from "@/lib/auth";
 import { ROLE_NAMES } from "@/lib/constants";
+import { normalizeToDayIST } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
@@ -54,7 +55,10 @@ export async function POST(req: Request) {
     return Response.json({ message: "Invalid startDate or endDate." }, { status: 400 });
   }
 
-  if (startDate > endDate) {
+  const startDay = normalizeToDayIST(startDate);
+  const endDay = normalizeToDayIST(endDate);
+
+  if (startDay > endDay) {
     return Response.json({ message: "startDate must be before or equal to endDate." }, { status: 400 });
   }
 
@@ -83,13 +87,34 @@ export async function POST(req: Request) {
     return Response.json({ message: "Master task not found." }, { status: 404 });
   }
 
-  const assignment = await prisma.staffMasterTask.create({
-    data: {
-      staffId: parsed.data.staffId,
-      masterTaskId: parsed.data.masterTaskId,
-      startDate,
-      endDate
-    }
+  const assignment = await prisma.$transaction(async (tx) => {
+    const created = await tx.staffMasterTask.create({
+      data: {
+        staffId: parsed.data.staffId,
+        masterTaskId: parsed.data.masterTaskId,
+        startDate: startDay,
+        endDate: endDay
+      }
+    });
+
+    // Ensure the task is available immediately for the provided startDate.
+    await tx.dailyStaffTask.upsert({
+      where: {
+        staffMasterTaskId_taskDate: {
+          staffMasterTaskId: created.id,
+          taskDate: startDay
+        }
+      },
+      update: {},
+      create: {
+        staffMasterTaskId: created.id,
+        staffId: parsed.data.staffId,
+        taskDate: startDay,
+        status: "PENDING"
+      }
+    });
+
+    return created;
   });
 
   return Response.json({ message: "Task assigned to staff.", data: assignment }, { status: 201 });
