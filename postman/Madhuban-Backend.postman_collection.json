@@ -1118,6 +1118,32 @@
               "response": []
             }
           ]
+        },
+        {
+          "name": "Users",
+          "item": [
+            {
+              "name": "POST Admin - Reset User Password",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"password\": \"NewPass@123\",\n  \"confirmPassword\": \"NewPass@123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/users/{{userId}}/reset-password",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "users", "{{userId}}", "reset-password"]
+                },
+                "description": "Admin JWT required. Resets password for the user with id=`{{userId}}`."
+              },
+              "response": []
+            }
+          ]
         }
       ]
     },

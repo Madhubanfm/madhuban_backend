@@ -35,6 +35,7 @@ function serializeUser(u: {
   id: number;
   name: string;
   email: string;
+  passwordHash: string;
   createdAt: Date;
   updatedAt: Date;
   role: { name: string };
@@ -45,6 +46,7 @@ function serializeUser(u: {
     id: u.id,
     name: u.name,
     email: u.email,
+    password: u.passwordHash,
     role: u.role.name,
     manager: u.manager,
     supervisor: u.supervisor,
