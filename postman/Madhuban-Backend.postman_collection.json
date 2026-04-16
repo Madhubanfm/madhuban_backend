@@ -2325,6 +2325,52 @@
           ]
         },
         {
+          "name": "Reviews",
+          "description": "Manager decision for tasks submitted by staff (TaskApproval). Manager can approve/reject tasks that are still pending review, but only for supervisors/staff under the manager.",
+          "item": [
+            {
+              "name": "POST Manager - Decision Approve",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"approve\",\n  \"comment\": \"Approved by manager.\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/manager/reviews/{{dailyTaskId}}/decision",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "manager", "reviews", "{{dailyTaskId}}", "decision"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "POST Manager - Decision Reject",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"reject\",\n  \"comment\": \"Please re-check and re-upload after photo.\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/manager/reviews/{{dailyTaskId}}/decision",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "manager", "reviews", "{{dailyTaskId}}", "decision"]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
           "name": "Reports",
           "description": "Manager Reports → Shift analytics (aggregated across all supervisors/staff under the manager). Uses IST day via `date` (YYYY-MM-DD).",
           "item": [
