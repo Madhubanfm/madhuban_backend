@@ -33,19 +33,30 @@ export async function POST(req: Request, ctx: { params: Promise<{ dailyTaskId: s
   const result = await prisma.$transaction(async (tx) => {
     const approval = await tx.taskApproval.findUnique({
       where: { dailyStaffTaskId: id },
-      select: { id: true, supervisorId: true, status: true, submittedAt: true }
+      select: {
+        id: true,
+        supervisorId: true,
+        status: true,
+        submittedAt: true,
+        decidedAt: true,
+        decisionNote: true
+      }
     });
 
     if (!approval) return { kind: "not_found" as const };
-    if (approval.status !== "PENDING") return { kind: "not_pending" as const, status: approval.status };
+    // Manager decisions are only valid after a supervisor has approved,
+    // but manager can still reject even if supervisor already approved.
+    if (parsed.data.action === "approve" && approval.status !== "APPROVED") {
+      return { kind: "supervisor_not_approved" as const, status: approval.status };
+    }
 
     const dailyTask = await tx.dailyStaffTask.findUnique({
       where: { id },
       select: { id: true, status: true }
     });
     if (!dailyTask) return { kind: "not_found" as const };
-    if (dailyTask.status !== "IN_REVIEW") {
-      return { kind: "not_in_review" as const, status: dailyTask.status };
+    if (!["IN_REVIEW", "APPROVED"].includes(dailyTask.status)) {
+      return { kind: "invalid_task_status" as const, status: dailyTask.status };
     }
 
     const supervisor = await tx.user.findUnique({
@@ -54,6 +65,23 @@ export async function POST(req: Request, ctx: { params: Promise<{ dailyTaskId: s
     });
     if (!supervisor) return { kind: "not_found" as const };
     if (supervisor.managerId !== user.userId) return { kind: "forbidden" as const };
+
+    // Manager "approve" is effectively a forward/no-op: we purposely do not overwrite
+    // supervisor decision metadata (decidedAt/decisionNote).
+    if (parsed.data.action === "approve") {
+      return {
+        kind: "ok" as const,
+        approval: {
+          id: approval.id,
+          dailyStaffTaskId: id,
+          status: approval.status,
+          submittedAt: approval.submittedAt,
+          decidedAt: approval.decidedAt,
+          decisionNote: approval.decisionNote,
+          supervisorId: approval.supervisorId
+        }
+      };
+    }
 
     const updated = await tx.taskApproval.update({
       where: { dailyStaffTaskId: id },
@@ -91,15 +119,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ dailyTaskId: s
   if (result.kind === "forbidden") {
     return Response.json({ message: "Not allowed." }, { status: 403 });
   }
-  if (result.kind === "not_in_review") {
+  if (result.kind === "invalid_task_status") {
     return Response.json(
-      { message: "Task must be IN_REVIEW to decide.", data: { currentStatus: result.status } },
+      { message: "Task must be IN_REVIEW/APPROVED to decide.", data: { currentStatus: result.status } },
       { status: 409 }
     );
   }
-  if (result.kind === "not_pending") {
+  if (result.kind === "supervisor_not_approved") {
     return Response.json(
-      { message: "Review already decided.", data: { currentStatus: result.status } },
+      { message: "Supervisor must approve before manager can approve.", data: { currentStatus: result.status } },
       { status: 409 }
     );
   }
