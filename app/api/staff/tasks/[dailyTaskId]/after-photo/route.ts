@@ -28,12 +28,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ dailyTaskId: s
     Array<{
       id: number;
       staffId: number;
+      status: string;
       beforePhotoUrl: string | null;
       supervisorId: number | null;
     }>
   >(
     Prisma.sql`
-      SELECT dst.id, dst."staffId", dst."beforePhotoUrl", u."supervisorId"
+      SELECT dst.id, dst."staffId", dst."status", dst."beforePhotoUrl", u."supervisorId"
       FROM "DailyStaffTask" dst
       INNER JOIN "User" u ON u.id = dst."staffId"
       WHERE dst.id = ${id}
@@ -43,6 +44,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ dailyTaskId: s
   const task = rows[0];
   if (!task || task.staffId !== user.userId) {
     return Response.json({ message: "Task not found." }, { status: 404 });
+  }
+
+  if (task.status === "COMPLETED" || task.status === "APPROVED") {
+    return Response.json({ message: "Task already completed. Reattempt is not allowed." }, { status: 409 });
   }
 
   if (!task.beforePhotoUrl) {
