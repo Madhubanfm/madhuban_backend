@@ -49,6 +49,15 @@ const propertyListInclude = {
 
 type FloorsInput = z.infer<typeof floorInputSchema>[];
 
+function getRequestOrigin(req: Request): string {
+  const proto = req.headers.get("x-forwarded-proto");
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  if (proto && host) {
+    return `${proto}://${host}`;
+  }
+  return new URL(req.url).origin;
+}
+
 function validateFloorsInput(floorsInput: FloorsInput): Response | null {
   const floorNumbers = floorsInput.map((f) => f.floorNumber);
   if (new Set(floorNumbers).size !== floorNumbers.length) {
@@ -133,13 +142,19 @@ async function createPropertyWithFloors(
   });
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const properties = await prisma.property.findMany({
     orderBy: [{ name: "asc" }],
     include: propertyListInclude
   });
 
-  return Response.json({ data: properties });
+  const origin = getRequestOrigin(req);
+  const data = properties.map((p) => ({
+    ...p,
+    imageUrl: p.imageUrl ? new URL(p.imageUrl, origin).toString() : null
+  }));
+
+  return Response.json({ data });
 }
 
 export async function POST(req: Request) {

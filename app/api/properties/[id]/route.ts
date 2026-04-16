@@ -30,8 +30,17 @@ function parsePropertyId(idParam: string): number | null {
   return id;
 }
 
+function getRequestOrigin(req: Request): string {
+  const proto = req.headers.get("x-forwarded-proto");
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  if (proto && host) {
+    return `${proto}://${host}`;
+  }
+  return new URL(req.url).origin;
+}
+
 export async function GET(
-  _req: Request,
+  req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   const { id: idParam } = await context.params;
@@ -49,7 +58,13 @@ export async function GET(
     return Response.json({ message: "Property not found." }, { status: 404 });
   }
 
-  return Response.json({ data: property });
+  const origin = getRequestOrigin(req);
+  const data = {
+    ...property,
+    imageUrl: property.imageUrl ? new URL(property.imageUrl, origin).toString() : null
+  };
+
+  return Response.json({ data });
 }
 
 export async function PATCH(

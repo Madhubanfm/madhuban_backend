@@ -1,6 +1,15 @@
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
+function getRequestOrigin(req: Request): string {
+  const proto = req.headers.get("x-forwarded-proto");
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  if (proto && host) {
+    return `${proto}://${host}`;
+  }
+  return new URL(req.url).origin;
+}
+
+export async function GET(req: Request) {
   const rows = await prisma.property.findMany({
     orderBy: { name: "asc" },
     select: {
@@ -21,10 +30,11 @@ export async function GET() {
     }
   });
 
+  const origin = getRequestOrigin(req);
   const data = rows.map((p) => ({
     id: p.id,
     name: p.name,
-    imageUrl: p.imageUrl,
+    imageUrl: p.imageUrl ? new URL(p.imageUrl, origin).toString() : null,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
     departmentCount: p.departments.length,
