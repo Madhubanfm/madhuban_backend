@@ -987,6 +987,20 @@
               "path": [
                 "api",
                 "staff-master-tasks"
+              ],
+              "query": [
+                {
+                  "key": "staffId",
+                  "value": "{{staffId}}",
+                  "disabled": true,
+                  "description": "Optional filter: staff user id. Enable to filter assignments for a single staff."
+                },
+                {
+                  "key": "startDate",
+                  "value": "{{startDate}}",
+                  "disabled": true,
+                  "description": "Optional filter: date (e.g. 2026-04-16 or ISO). Returns assignments active on that day."
+                }
               ]
             }
           },

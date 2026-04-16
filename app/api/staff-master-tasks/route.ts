@@ -11,18 +11,52 @@ const schema = z.object({
   endDate: z.string().min(1)
 });
 
-export async function GET() {
+const getQuerySchema = z.object({
+  staffId: z.coerce.number().int().positive().optional(),
+  staff: z.coerce.number().int().positive().optional(),
+  startDate: z.string().min(1).optional()
+});
+
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const parsedQuery = getQuerySchema.safeParse({
+    staffId: url.searchParams.get("staffId") ?? undefined,
+    staff: url.searchParams.get("staff") ?? undefined,
+    startDate: url.searchParams.get("startDate") ?? undefined
+  });
+
+  if (!parsedQuery.success) {
+    return Response.json({ message: "Invalid query params." }, { status: 400 });
+  }
+
+  const staffId = parsedQuery.data.staffId ?? parsedQuery.data.staff;
+
+  let day: Date | undefined;
+  if (parsedQuery.data.startDate) {
+    const d = new Date(parsedQuery.data.startDate);
+    if (Number.isNaN(d.getTime())) {
+      return Response.json({ message: "Invalid startDate." }, { status: 400 });
+    }
+    day = normalizeToDayIST(d);
+  }
+
   const assignments = await prisma.staffMasterTask.findMany({
     orderBy: { id: "desc" },
-    include: {
-      staff: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          supervisor: { select: { id: true, name: true, email: true } }
-        }
-      },
+    where: {
+      ...(staffId ? { staffId } : {}),
+      ...(day
+        ? {
+            startDate: { lte: day },
+            endDate: { gte: day }
+          }
+        : {})
+    },
+    select: {
+      id: true,
+      staffId: true,
+      masterTaskId: true,
+      startDate: true,
+      endDate: true,
       masterTask: true
     }
   });
