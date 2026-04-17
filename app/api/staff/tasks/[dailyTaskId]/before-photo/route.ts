@@ -58,7 +58,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ dailyTaskId: s
   const updatedCount = await prisma.$executeRaw(
     Prisma.sql`
       UPDATE "DailyStaffTask"
-      SET "beforePhotoUrl" = ${beforePhotoUrl}, "updatedAt" = NOW()
+      SET
+        "beforePhotoUrl" = ${beforePhotoUrl},
+        "status" = CASE
+          WHEN "status" IN ('PENDING', 'REJECTED') THEN 'STARTED'
+          ELSE "status"
+        END,
+        "startedAt" = CASE
+          WHEN "startedAt" IS NULL AND "status" IN ('PENDING', 'REJECTED') THEN NOW()
+          ELSE "startedAt"
+        END,
+        "updatedAt" = NOW()
       WHERE id = ${id}
         AND "staffId" = ${user.userId}
         AND "status" NOT IN ('COMPLETED', 'APPROVED')
