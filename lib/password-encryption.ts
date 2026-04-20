@@ -3,23 +3,41 @@ import crypto from "node:crypto";
 const VERSION_PREFIX = "v1";
 
 function getEncryptionKey(): Buffer {
-  const raw = process.env.PASSWORD_ENCRYPTION_KEY;
+  const raw = process.env.PASSWORD_ENCRYPTION_KEY?.trim();
   if (!raw) {
     throw new Error("PASSWORD_ENCRYPTION_KEY is not configured.");
   }
 
-  let key: Buffer;
-  try {
-    key = Buffer.from(raw, "base64");
-  } catch {
-    throw new Error("PASSWORD_ENCRYPTION_KEY must be base64.");
+  // Accept a few common encodings to reduce configuration footguns:
+  // - base64 / base64url encoding of 32 bytes (recommended)
+  // - 64-char hex encoding of 32 bytes
+  // - raw 32-character string (treated as UTF-8 bytes)
+  //
+  // Note: Buffer.from(base64) does not reliably throw on invalid input, so we
+  // validate by requiring the decoded size to be 32 bytes.
+  const base64Normalized = raw.replace(/-/g, "+").replace(/_/g, "/");
+
+  const base64Decoded = Buffer.from(base64Normalized, "base64");
+  if (base64Decoded.length === 32) return base64Decoded;
+
+  if (/^[0-9a-fA-F]{64}$/.test(raw)) {
+    const hexDecoded = Buffer.from(raw, "hex");
+    if (hexDecoded.length === 32) return hexDecoded;
   }
 
-  if (key.length !== 32) {
-    throw new Error("PASSWORD_ENCRYPTION_KEY must decode to 32 bytes (AES-256 key).");
-  }
+  const utf8Decoded = Buffer.from(raw, "utf8");
+  if (utf8Decoded.length === 32) return utf8Decoded;
 
-  return key;
+  throw new Error(
+    [
+      "PASSWORD_ENCRYPTION_KEY must be a 32-byte AES-256 key.",
+      "Provide one of:",
+      "- base64/base64url for 32 bytes (recommended)",
+      "- 64-char hex for 32 bytes",
+      "- a raw 32-character string",
+      "Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\""
+    ].join("\n")
+  );
 }
 
 export function encryptPassword(plain: string): string {
