@@ -13,8 +13,10 @@ const updateUserSchema = z
     password: z.string().min(1).optional(),
     managerId: z.number().int().positive().nullable().optional(),
     supervisorId: z.number().int().positive().nullable().optional(),
-    // Accepted for client compatibility (not stored in DB)
-    phone: z.string().min(1).optional(),
+    // `phone` is accepted for backward compatibility; we store to `mobileNumber`.
+    mobileNumber: z.coerce.string().trim().min(1).optional(),
+    phone: z.coerce.string().trim().min(1).optional(),
+    phoneNumber: z.coerce.string().trim().min(1).optional(),
     status: z.string().min(1).optional(),
     department: z.string().min(1).optional()
   })
@@ -36,6 +38,7 @@ function serializeUser(u: {
   id: number;
   name: string;
   email: string;
+  mobileNumber?: string | null;
   passwordHash: string;
   passwordEncrypted?: string | null;
   createdAt: Date;
@@ -57,6 +60,7 @@ function serializeUser(u: {
     id: u.id,
     name: u.name,
     email: u.email,
+    mobileNumber: u.mobileNumber ?? null,
     password: decryptedPassword,
     role: u.role.name,
     manager: u.manager,
@@ -146,6 +150,9 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
   if (parsed.data.name !== undefined) data.name = parsed.data.name.trim();
   if (parsed.data.email !== undefined) data.email = parsed.data.email.toLowerCase();
   if (parsed.data.role !== undefined) data.roleId = role.id;
+  if (parsed.data.mobileNumber !== undefined) (data as any).mobileNumber = parsed.data.mobileNumber;
+  if (parsed.data.phone !== undefined) (data as any).mobileNumber = parsed.data.phone;
+  if (parsed.data.phoneNumber !== undefined) (data as any).mobileNumber = parsed.data.phoneNumber;
 
   if (parsed.data.password !== undefined) {
     data.passwordHash = await hashPassword(parsed.data.password);

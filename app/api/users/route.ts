@@ -14,8 +14,10 @@ const createUserSchema = z.object({
   confirmPassword: z.string().min(1).optional(),
   managerId: z.number().int().positive().optional(),
   supervisorId: z.number().int().positive().optional(),
-  // Accepted for client compatibility (not stored in DB)
-  phone: z.string().min(1).optional(),
+  // `phone` is accepted for backward compatibility; we store to `mobileNumber`.
+  mobileNumber: z.coerce.string().trim().min(1).optional(),
+  phone: z.coerce.string().trim().min(1).optional(),
+  phoneNumber: z.coerce.string().trim().min(1).optional(),
   status: z.string().min(1).optional(),
   department: z.string().min(1).optional()
 }).refine((data) => data.roleId != null || (data.role != null && data.role.trim().length > 0), {
@@ -50,6 +52,7 @@ function serializeUser(u: {
   id: number;
   name: string;
   email: string;
+  mobileNumber?: string | null;
   passwordHash: string;
   passwordEncrypted?: string | null;
   createdAt: Date;
@@ -70,6 +73,7 @@ function serializeUser(u: {
     id: u.id,
     name: u.name,
     email: u.email,
+    mobileNumber: u.mobileNumber ?? null,
     password: decryptedPassword,
     role: u.role.name,
     manager: u.manager,
@@ -192,6 +196,11 @@ export async function POST(req: Request) {
       data: ({
         name: parsed.data.name.trim(),
         email: parsed.data.email.toLowerCase(),
+        mobileNumber:
+          parsed.data.mobileNumber ??
+          parsed.data.phone ??
+          parsed.data.phoneNumber ??
+          null,
         passwordHash,
         passwordEncrypted,
         roleId: role.id,
