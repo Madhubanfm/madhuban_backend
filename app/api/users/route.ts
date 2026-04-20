@@ -57,11 +57,20 @@ function serializeUser(u: {
   manager: { id: number; name: string; email: string } | null;
   supervisor: { id: number; name: string; email: string } | null;
 }) {
+  let decryptedPassword: string | null = null;
+  if (u.passwordEncrypted) {
+    try {
+      decryptedPassword = decryptPassword(u.passwordEncrypted);
+    } catch {
+      // Likely legacy/corrupt payload or key rotation; avoid crashing the endpoint.
+      decryptedPassword = null;
+    }
+  }
   return {
     id: u.id,
     name: u.name,
     email: u.email,
-    password: u.passwordEncrypted ? decryptPassword(u.passwordEncrypted) : null,
+    password: decryptedPassword,
     role: u.role.name,
     manager: u.manager,
     supervisor: u.supervisor,
