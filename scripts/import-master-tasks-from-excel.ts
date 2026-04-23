@@ -3,6 +3,12 @@ import process from "node:process";
 import * as XLSX from "xlsx";
 import { Prisma, PrismaClient } from "@prisma/client";
 
+type Args = {
+  excelPath: string;
+  sheetName?: string;
+  propertyFloorIds?: number[];
+};
+
 function normalizeCellString(value: unknown): string | null {
   if (value === null || value === undefined) return null;
   const s = String(value).replace(/\s+/g, " ").trim();
@@ -26,6 +32,67 @@ function findHeaderKey(row: Record<string, unknown>, wanted: string[]): string |
     if (found) return found;
   }
   return null;
+}
+
+function findSheetName(workbook: XLSX.WorkBook, wanted?: string): string | null {
+  if (!workbook.SheetNames.length) return null;
+  if (!wanted) return workbook.SheetNames[0] ?? null;
+  const normalizedWanted = wanted.trim().toLowerCase();
+  const exact = workbook.SheetNames.find((n) => n === wanted);
+  if (exact) return exact;
+  const insensitive = workbook.SheetNames.find((n) => n.trim().toLowerCase() === normalizedWanted);
+  if (insensitive) return insensitive;
+  return null;
+}
+
+function detectHeaderRowIndex0(rawRows: unknown[][], requiredAny: string[][], maxScanRows = 120): number | null {
+  const scan = Math.min(rawRows.length, maxScanRows);
+  const wanted = requiredAny.map((alts) => alts.map((x) => normalizeHeaderKey(x)));
+
+  for (let i = 0; i < scan; i++) {
+    const row = rawRows[i] ?? [];
+    const normalizedCells = new Set(
+      row
+        .map((c) => normalizeHeaderKey(String(c ?? "")))
+        .filter(Boolean)
+    );
+
+    const ok = wanted.every((altGroup) => altGroup.some((alt) => normalizedCells.has(alt)));
+    if (ok) return i;
+  }
+  return null;
+}
+
+function sheetToRowsUsingDetectedHeader(sheet: XLSX.WorkSheet): { rows: Record<string, unknown>[]; headerRowIndex0: number } {
+  const raw = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" }) as unknown[][];
+
+  const headerRowIndex0 = detectHeaderRowIndex0(
+    raw,
+    [
+      ["Zone id", "Zone ID", "ZoneId", "Zone"],
+      ["Title", "Task name", "Task Name", "Task", "TaskName"],
+      ["Maker start", "Maker Start", "Start time", "Start Time"],
+      ["Maker deadline", "Maker Deadline", "End time", "End Time", "Deadline"]
+    ],
+    200
+  );
+
+  if (headerRowIndex0 === null) {
+    const firstRow = raw[0] ?? [];
+    const preview = firstRow
+      .slice(0, 40)
+      .map((c) => String(c ?? ""))
+      .join(", ");
+    throw new Error(
+      `Could not detect header row (looking for zone/title/maker start/maker deadline). First row cells: ${preview}`
+    );
+  }
+
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+    defval: "",
+    range: headerRowIndex0
+  });
+  return { rows, headerRowIndex0 };
 }
 
 function timeOfDayFromParts(h: number, m: number, s: number, ms: number): Date {
@@ -65,47 +132,34 @@ function parseTimeOfDay(value: unknown): Date | null {
   return null;
 }
 
-function parseDurationToMinutes(value: unknown): number | null {
+function parsePositiveInt(value: unknown): number | null {
   if (value === null || value === undefined) return null;
-
   if (typeof value === "number" && Number.isFinite(value)) {
-    // Sheet may store "Maker Duration (min)" as a number
-    const minutes = Math.round(value);
-    return minutes >= 0 ? minutes : null;
+    const n = Math.trunc(value);
+    return n >= 1 ? n : null;
   }
-
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    const minutes = value.getHours() * 60 + value.getMinutes();
-    return minutes >= 0 ? minutes : null;
-  }
-
   const s = normalizeCellString(value);
   if (!s) return null;
-
-  // numeric string minutes (e.g. "45")
-  if (/^\d+(\.\d+)?$/.test(s)) {
-    const n = Number(s);
-    if (!Number.isFinite(n)) return null;
-    const minutes = Math.round(n);
-    return minutes >= 0 ? minutes : null;
-  }
-
-  const m = /^(\d{1,2}):(\d{2})$/.exec(s);
-  if (!m) return null;
-
-  const hh = Number(m[1]);
-  const mm = Number(m[2]);
-  if (Number.isNaN(hh) || Number.isNaN(mm) || mm > 59 || hh < 0) return null;
-  return hh * 60 + mm;
+  if (!/^\d+$/.test(s)) return null;
+  const n = Number(s);
+  if (!Number.isInteger(n) || n < 1) return null;
+  return n;
 }
 
-function addMinutesWrap24h(start: Date, minutesToAdd: number): Date {
-  const startMinutes = start.getUTCHours() * 60 + start.getUTCMinutes();
-  const total = (startMinutes + minutesToAdd) % (24 * 60);
-  const wrapped = (total + 24 * 60) % (24 * 60);
-  const hh = Math.floor(wrapped / 60);
-  const mm = wrapped % 60;
-  return timeOfDayFromParts(hh, mm, 0, 0);
+function parseCommaSeparatedPositiveInts(value: string | undefined): number[] | null {
+  if (!value) return null;
+  const parts = value
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+  if (!parts.length) return null;
+  const out: number[] = [];
+  for (const p of parts) {
+    const n = parsePositiveInt(p);
+    if (!n) return null;
+    out.push(n);
+  }
+  return out;
 }
 
 function parseMaterials(value: unknown): string[] | null {
@@ -118,43 +172,60 @@ function parseMaterials(value: unknown): string[] | null {
   return items.length > 0 ? items : null;
 }
 
-async function main() {
-  const excelArg = process.argv[2] ?? "FM HO (1).xlsx";
-  const excelPath = path.isAbsolute(excelArg) ? excelArg : path.resolve(process.cwd(), excelArg);
+function parseArgs(argv: string[]): Args {
+  const rest = argv.slice(2);
+  const excelArg = rest.find((a) => !a.startsWith("--")) ?? "Madhuban final.xlsx";
+  const sheetFromFlag = rest.find((a) => a.startsWith("--sheet="))?.slice("--sheet=".length);
+  const propertyFloorIdsFromFlag = rest
+    .find((a) => a.startsWith("--propertyFloorIds="))
+    ?.slice("--propertyFloorIds=".length);
+  const sheetName = sheetFromFlag ? sheetFromFlag.trim() : undefined;
+  const propertyFloorIds = parseCommaSeparatedPositiveInts(propertyFloorIdsFromFlag) ?? undefined;
 
-  const propertyName = process.env.PROPERTY_NAME ?? "HO";
-  const floorNo = Number(process.env.FLOOR_NO ?? "1");
+  const excelPath = path.isAbsolute(excelArg) ? excelArg : path.resolve(process.cwd(), excelArg);
+  return { excelPath, sheetName, propertyFloorIds };
+}
+
+async function main() {
+  const { excelPath, sheetName: sheetNameFromArgs, propertyFloorIds } = parseArgs(process.argv);
+  const sheetName = sheetNameFromArgs ?? (process.env.SHEET_NAME ? process.env.SHEET_NAME.trim() : undefined);
   const strictZones = (process.env.STRICT_ZONES ?? "false").toLowerCase() === "true";
 
   const workbook = XLSX.readFile(excelPath, { cellDates: true });
-  const firstSheetName = workbook.SheetNames[0];
-  if (!firstSheetName) throw new Error("No sheets found in the Excel file.");
-
-  const sheet = workbook.Sheets[firstSheetName];
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
-  if (rows.length === 0) throw new Error("No rows found in the first sheet.");
+  const chosenSheetName = findSheetName(workbook, sheetName);
+  if (!chosenSheetName) throw new Error("No sheets found in the Excel file.");
+  const sheet = workbook.Sheets[chosenSheetName];
+  if (!sheet) {
+    throw new Error(
+      `Sheet not found: "${chosenSheetName}". Available: ${workbook.SheetNames.map((n) => `"${n}"`).join(", ")}`
+    );
+  }
+  const { rows, headerRowIndex0 } = sheetToRowsUsingDetectedHeader(sheet);
+  if (rows.length === 0) throw new Error(`No rows found in sheet "${chosenSheetName}".`);
 
   const zoneKey =
-    findHeaderKey(rows[0], ["Zones", "Zone", "Area", "Location"]) ?? findHeaderKey(rows[0], ["ZONES", "ZONE"]);
-  const taskNameKey = findHeaderKey(rows[0], ["Task name", "Task Name", "Task", "TaskName"]);
+    findHeaderKey(rows[0], ["Zone id", "Zone ID", "ZoneId", "Zone", "Zones", "Area", "Location"]) ??
+    findHeaderKey(rows[0], ["ZONE ID", "ZONEID", "ZONE", "ZONES", "AREA", "LOCATION"]);
+  const taskNameKey = findHeaderKey(rows[0], ["Title", "Task name", "Task Name", "Task", "TaskName"]);
   const priorityKey = findHeaderKey(rows[0], ["Priority", "PRIORITY"]);
   const makerStartKey = findHeaderKey(rows[0], ["Maker start", "Maker Start", "Start time", "Start Time"]);
-  const makerDurationKey = findHeaderKey(rows[0], [
-    "Maker duration",
-    "Maker Duration",
-    "Maker Duration (min)",
-    "Maker duration (min)",
-    "Duration",
-    "Duration (min)",
-    "MakerDuration"
+  const makerDeadlineKey = findHeaderKey(rows[0], [
+    "Maker deadline",
+    "Maker Deadline",
+    "End time",
+    "End Time",
+    "Maker end",
+    "Maker End",
+    "Deadline",
+    "DEADLINE"
   ]);
   const materialsKey = findHeaderKey(rows[0], ["Materials", "Material", "MATERIALS", "MATERIAL"]);
 
   const missing: string[] = [];
-  if (!zoneKey) missing.push("Zones/Zone");
-  if (!taskNameKey) missing.push("Task name");
+  if (!zoneKey) missing.push("Zone id/Zone");
+  if (!taskNameKey) missing.push("Title/Task name");
   if (!makerStartKey) missing.push("Maker start");
-  if (!makerDurationKey) missing.push("Maker duration");
+  if (!makerDeadlineKey) missing.push("Maker deadline");
   if (missing.length > 0) {
     const sampleKeys = Object.keys(rows[0]).slice(0, 40);
     throw new Error(
@@ -164,7 +235,7 @@ async function main() {
   const zoneKeyReq = zoneKey!;
   const taskNameKeyReq = taskNameKey!;
   const makerStartKeyReq = makerStartKey!;
-  const makerDurationKeyReq = makerDurationKey!;
+  const makerDeadlineKeyReq = makerDeadlineKey!;
 
   const prisma = new PrismaClient();
   try {
@@ -174,28 +245,71 @@ async function main() {
     });
     if (!admin) throw new Error(`Could not find an admin user (role.name = "admin").`);
 
-    const property = await prisma.property.upsert({
-      where: { name: propertyName },
-      update: {},
-      create: { name: propertyName }
-    });
+    const seenInExcel = new Set<string>();
+    const toInsert: Prisma.MasterTaskCreateManyInput[] = [];
 
-    const floor = await prisma.propertyFloor.upsert({
-      where: { propertyId_floorNo: { propertyId: property.id, floorNo } },
-      update: {},
-      create: { propertyId: property.id, floorNo }
-    });
+    let skippedMissingFields = 0;
+    let skippedUnknownZones = 0;
+    let skippedDuplicate = 0;
 
-    const zones = await prisma.propertyFloorZone.findMany({
-      where: { propertyFloorId: floor.id },
-      select: { id: true, zone: true }
-    });
-    const zoneByLower = new Map(zones.map((z) => [z.zone.trim().toLowerCase(), z] as const));
+    const unknownZoneValuesSample = new Set<string>();
+    const ambiguousZoneValuesSample = new Set<string>();
 
-    const zoneIds = zones.map((z) => z.id);
-    const existing = zoneIds.length
+    const zoneIdsInExcel = new Set<number>();
+    const zoneNamesInExcelLower = new Set<string>();
+    for (const row of rows) {
+      const rawZone = row[zoneKeyReq];
+      const zoneId = parsePositiveInt(rawZone);
+      if (zoneId) {
+        zoneIdsInExcel.add(zoneId);
+      } else {
+        const zoneName = normalizeCellString(rawZone);
+        if (zoneName) zoneNamesInExcelLower.add(zoneName.toLowerCase());
+      }
+    }
+
+    const zoneIdsToLookup = Array.from(zoneIdsInExcel);
+
+    const zonesById = zoneIdsToLookup.length
+      ? await prisma.propertyFloorZone.findMany({
+          where: { id: { in: zoneIdsToLookup } },
+          select: { id: true, zone: true, propertyFloorId: true }
+        })
+      : [];
+    const zoneById = new Map(zonesById.map((z) => [z.id, z] as const));
+
+    // For zone-name lookups:
+    // - If propertyFloorIds is provided, we resolve zone name within those floors (and can replicate tasks across floors).
+    // - Otherwise, we attempt a global lookup; if name matches multiple zones across floors, treat as ambiguous.
+    const zonesForNameLookup = zoneNamesInExcelLower.size
+      ? await prisma.propertyFloorZone.findMany({
+          where: propertyFloorIds?.length
+            ? { propertyFloorId: { in: propertyFloorIds } }
+            : { zone: { in: Array.from(zoneNamesInExcelLower) } },
+          select: { id: true, zone: true, propertyFloorId: true }
+        })
+      : [];
+
+    const zonesByNameLower = new Map<string, { id: number; zone: string; propertyFloorId: number }[]>();
+    for (const z of zonesForNameLookup) {
+      const k = z.zone.trim().toLowerCase();
+      const arr = zonesByNameLower.get(k) ?? [];
+      arr.push(z);
+      zonesByNameLower.set(k, arr);
+    }
+
+    const zonesByFloorIdThenNameLower = new Map<number, Map<string, { id: number; zone: string; propertyFloorId: number }>>();
+    if (propertyFloorIds?.length) {
+      for (const z of zonesForNameLookup) {
+        const byName = zonesByFloorIdThenNameLower.get(z.propertyFloorId) ?? new Map();
+        byName.set(z.zone.trim().toLowerCase(), z);
+        zonesByFloorIdThenNameLower.set(z.propertyFloorId, byName);
+      }
+    }
+
+    const existing = zoneIdsToLookup.length
       ? await prisma.masterTask.findMany({
-          where: { zoneId: { in: zoneIds } },
+          where: { zoneId: { in: zoneIdsToLookup } },
           select: { zoneId: true, title: true }
         })
       : [];
@@ -205,63 +319,97 @@ async function main() {
         .map((t) => `${t.zoneId}|${t.title.trim().toLowerCase()}`)
     );
 
-    const seenInExcel = new Set<string>();
-    const toInsert: Prisma.MasterTaskCreateManyInput[] = [];
-
-    let skippedMissingFields = 0;
-    let skippedUnknownZones = 0;
-    let skippedDuplicate = 0;
-
-    const unknownZonesSample = new Set<string>();
-
     for (const row of rows) {
-      const zoneStr = normalizeCellString(row[zoneKeyReq]);
       const title = normalizeCellString(row[taskNameKeyReq]);
-      if (!zoneStr || !title) {
+      const rawZone = row[zoneKeyReq];
+      const zoneIdFromExcel = parsePositiveInt(rawZone);
+      const zoneNameFromExcel = zoneIdFromExcel ? null : normalizeCellString(rawZone);
+
+      if ((!zoneIdFromExcel && !zoneNameFromExcel) || !title) {
         skippedMissingFields++;
         continue;
       }
 
-      const zoneRow = zoneByLower.get(zoneStr.toLowerCase());
-      if (!zoneRow) {
-        skippedUnknownZones++;
-        if (unknownZonesSample.size < 25) unknownZonesSample.add(zoneStr);
-        if (strictZones) continue;
-        continue;
+      const candidateZoneIds: number[] = [];
+      if (zoneIdFromExcel) {
+        const zoneRow = zoneById.get(zoneIdFromExcel);
+        if (!zoneRow) {
+          skippedUnknownZones++;
+          if (unknownZoneValuesSample.size < 25) unknownZoneValuesSample.add(String(zoneIdFromExcel));
+          if (strictZones) continue;
+          continue;
+        }
+        candidateZoneIds.push(zoneRow.id);
+      } else if (zoneNameFromExcel) {
+        const zoneLower = zoneNameFromExcel.toLowerCase();
+        if (propertyFloorIds?.length) {
+          for (const floorId of propertyFloorIds) {
+            const byName = zonesByFloorIdThenNameLower.get(floorId);
+            const z = byName?.get(zoneLower);
+            if (z) candidateZoneIds.push(z.id);
+          }
+          if (!candidateZoneIds.length) {
+            skippedUnknownZones++;
+            if (unknownZoneValuesSample.size < 25) unknownZoneValuesSample.add(zoneNameFromExcel);
+            if (strictZones) continue;
+            continue;
+          }
+        } else {
+          const matches = zonesByNameLower.get(zoneLower) ?? [];
+          if (!matches.length) {
+            skippedUnknownZones++;
+            if (unknownZoneValuesSample.size < 25) unknownZoneValuesSample.add(zoneNameFromExcel);
+            if (strictZones) continue;
+            continue;
+          }
+          if (matches.length > 1) {
+            skippedUnknownZones++;
+            if (ambiguousZoneValuesSample.size < 25) ambiguousZoneValuesSample.add(zoneNameFromExcel);
+            if (strictZones) continue;
+            continue;
+          }
+          candidateZoneIds.push(matches[0]!.id);
+        }
       }
 
       const startTime = parseTimeOfDay(row[makerStartKeyReq]);
-      const durationMin = parseDurationToMinutes(row[makerDurationKeyReq]);
-      if (!startTime || durationMin === null) {
+      const endTime = parseTimeOfDay(row[makerDeadlineKeyReq]);
+      if (!startTime || !endTime) {
         skippedMissingFields++;
         continue;
       }
-      const endTime = addMinutesWrap24h(startTime, durationMin);
-
-      const key = `${zoneRow.id}|${title.trim().toLowerCase()}`;
-      if (existingKey.has(key) || seenInExcel.has(key)) {
-        skippedDuplicate++;
-        continue;
-      }
-      seenInExcel.add(key);
 
       const priority = priorityKey ? normalizeCellString(row[priorityKey]) : null;
       const materials = materialsKey ? parseMaterials(row[materialsKey]) : null;
 
-      toInsert.push({
-        title: title.trim(),
-        priority: priority ?? null,
-        startTime,
-        endTime,
-        zoneId: zoneRow.id,
-        createdByAdminId: admin.id,
-        ...(materials ? { materials } : { materials: Prisma.DbNull })
-      });
+      for (const zoneId of candidateZoneIds) {
+        const key = `${zoneId}|${title.trim().toLowerCase()}`;
+        if (existingKey.has(key) || seenInExcel.has(key)) {
+          skippedDuplicate++;
+          continue;
+        }
+        seenInExcel.add(key);
+
+        // If we are inserting tasks for multiple floors (replication), ensure we also consider them for DB-duplicate checks
+        existingKey.add(key);
+
+        toInsert.push({
+          title: title.trim(),
+          priority: priority ?? null,
+          startTime,
+          endTime,
+          zoneId,
+          createdByAdminId: admin.id,
+          ...(materials ? { materials } : { materials: Prisma.DbNull })
+        });
+      }
     }
 
-    if (strictZones && unknownZonesSample.size > 0) {
+    if (strictZones && (unknownZoneValuesSample.size > 0 || ambiguousZoneValuesSample.size > 0)) {
       throw new Error(
-        `Unknown zones found (STRICT_ZONES=true). Examples: ${Array.from(unknownZonesSample).join(", ")}`
+        `Unknown/ambiguous zones found (STRICT_ZONES=true). Unknown examples: ${Array.from(unknownZoneValuesSample).join(
+          ", "
+        )}. Ambiguous examples: ${Array.from(ambiguousZoneValuesSample).join(", ")}`
       );
     }
 
@@ -275,26 +423,28 @@ async function main() {
       JSON.stringify(
         {
           excelPath,
-          sheet: firstSheetName,
-          property: { id: property.id, name: property.name },
-          floor: { id: floor.id, floorNo: floor.floorNo },
+          sheet: chosenSheetName,
+          detectedHeaderRow: headerRowIndex0 + 1,
+          propertyFloorIds: propertyFloorIds ?? null,
           detectedColumns: {
             zone: zoneKey,
             taskName: taskNameKey,
             priority: priorityKey,
             makerStart: makerStartKey,
-            makerDuration: makerDurationKey,
+            makerDeadline: makerDeadlineKey,
             materials: materialsKey
           },
           totalRows: rows.length,
-          zonesOnFloor: zones.length,
+          zoneIdsInExcel: zoneIdsToLookup.length,
+          zonesFoundInDb: zonesById.length,
           inserted: result.count,
           skipped: {
             missingFieldsOrUnparseableTime: skippedMissingFields,
             unknownZones: skippedUnknownZones,
             duplicateByZoneAndTitle: skippedDuplicate
           },
-          unknownZonesSample: Array.from(unknownZonesSample)
+          unknownZonesSample: Array.from(unknownZoneValuesSample),
+          ambiguousZonesSample: Array.from(ambiguousZoneValuesSample)
         },
         null,
         2
