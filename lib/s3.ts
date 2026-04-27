@@ -8,6 +8,25 @@ function requiredEnv(name: string): string {
   return v;
 }
 
+function getS3CredentialsOrThrow():
+  | { accessKeyId: string; secretAccessKey: string; sessionToken?: string }
+  | null {
+  const allowDefaultChain = (process.env.AWS_ALLOW_DEFAULT_CREDENTIALS_CHAIN ?? "").toLowerCase() === "true";
+  if (allowDefaultChain) return null;
+
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+  const sessionToken = process.env.AWS_SESSION_TOKEN;
+
+  if (!accessKeyId || !secretAccessKey) {
+    throw new Error(
+      "AWS credentials are not configured. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY (and AWS_SESSION_TOKEN if applicable), or set AWS_ALLOW_DEFAULT_CREDENTIALS_CHAIN=true to use the AWS SDK default credential chain."
+    );
+  }
+
+  return sessionToken ? { accessKeyId, secretAccessKey, sessionToken } : { accessKeyId, secretAccessKey };
+}
+
 export function getS3Config() {
   return {
     region: requiredEnv("AWS_REGION"),
@@ -17,7 +36,8 @@ export function getS3Config() {
 
 export function createS3Client() {
   const { region } = getS3Config();
-  return new S3Client({ region });
+  const credentials = getS3CredentialsOrThrow();
+  return credentials ? new S3Client({ region, credentials }) : new S3Client({ region });
 }
 
 export function buildTaskPhotoKey(params: {
