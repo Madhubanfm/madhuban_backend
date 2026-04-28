@@ -11,6 +11,11 @@ function truthyEnv(name: string): boolean {
   return v === "1" || v === "true" || v === "yes" || v === "on";
 }
 
+function falsyEnv(name: string): boolean {
+  const v = (process.env[name] ?? "").trim().toLowerCase();
+  return v === "0" || v === "false" || v === "no" || v === "off";
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -24,7 +29,12 @@ export function createRequestId() {
 }
 
 function shouldDebug(routeKey: string) {
-  if (!truthyEnv("DEBUG_API")) return false;
+  // Default: ON (so EC2 can show full trace without .env changes)
+  // You can still disable it by setting DEBUG_API=0/false/off.
+  if (falsyEnv("DEBUG_API")) return false;
+
+  // If DEBUG_API is explicitly set truthy, always allow (subject to route filter below).
+  // If DEBUG_API is not set at all, still allow by default.
   const filter = (process.env.DEBUG_API_ROUTES ?? "").trim().toLowerCase();
   if (!filter) return true;
   const parts = filter
