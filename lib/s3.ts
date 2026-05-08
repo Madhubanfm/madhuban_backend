@@ -44,6 +44,12 @@ export function createS3Client() {
     : new S3Client({ region, requestHandler });
 }
 
+let _s3Client: S3Client | null = null;
+function getS3Client(): S3Client {
+  if (!_s3Client) _s3Client = createS3Client();
+  return _s3Client;
+}
+
 export function buildTaskPhotoKey(params: {
   dailyTaskId: number;
   kind: "before" | "after";
@@ -77,7 +83,7 @@ export function buildPublicUrl(key: string) {
 
 export async function uploadBufferToS3(params: { key: string; contentType: string; body: Buffer }) {
   const { bucket } = getS3Config();
-  const client = createS3Client();
+  const client = getS3Client();
 
   await client.send(
     new PutObjectCommand({
