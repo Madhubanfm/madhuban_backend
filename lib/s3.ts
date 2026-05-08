@@ -38,7 +38,7 @@ export function getS3Config() {
 export function createS3Client() {
   const { region } = getS3Config();
   const credentials = getS3CredentialsOrThrow();
-  const requestHandler = new NodeHttpHandler({ connectionTimeout: 5000, socketTimeout: 30000 });
+  const requestHandler = new NodeHttpHandler({ connectionTimeout: 25000, socketTimeout: 60000 });
   return credentials
     ? new S3Client({ region, credentials, requestHandler })
     : new S3Client({ region, requestHandler });
