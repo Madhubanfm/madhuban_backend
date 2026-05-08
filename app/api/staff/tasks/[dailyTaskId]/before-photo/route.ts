@@ -47,15 +47,27 @@ export async function POST(req: Request, ctx: { params: Promise<{ dailyTaskId: s
     return Response.json({ message: "Invalid photo type. Use image/jpeg or image/png." }, { status: 400 });
   }
 
-  const buf = Buffer.from(await photo.arrayBuffer());
+  let buf: Buffer;
+  try {
+    buf = Buffer.from(await photo.arrayBuffer());
+  } catch {
+    return Response.json({ message: "Invalid photo file." }, { status: 400 });
+  }
   if (buf.length === 0) {
     return Response.json({ message: "Empty file." }, { status: 400 });
   }
 
   const key = buildTaskPhotoKey({ dailyTaskId: id, kind: "before", ext });
-  const beforePhotoUrl = await uploadBufferToS3({ key, contentType: photo.type, body: buf });
+  let beforePhotoUrl: string;
+  try {
+    beforePhotoUrl = await uploadBufferToS3({ key, contentType: photo.type, body: buf });
+  } catch {
+    return Response.json({ message: "Failed to upload photo." }, { status: 502 });
+  }
 
-  const updatedCount = await prisma.$executeRaw(
+  let updatedCount: number;
+  try {
+    updatedCount = await prisma.$executeRaw(
     Prisma.sql`
       UPDATE "DailyStaffTask"
       SET
@@ -73,7 +85,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ dailyTaskId: s
         AND "staffId" = ${user.userId}
         AND "status" NOT IN ('COMPLETED', 'APPROVED')
     `
-  );
+    );
+  } catch {
+    return Response.json({ message: "Internal error." }, { status: 500 });
+  }
 
   if (updatedCount === 0) {
     return Response.json({ message: "Task already completed. Reattempt is not allowed." }, { status: 409 });

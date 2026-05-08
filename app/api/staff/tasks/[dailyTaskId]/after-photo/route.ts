@@ -70,56 +70,51 @@ export async function POST(req: Request, ctx: { params: Promise<{ dailyTaskId: s
     return Response.json({ message: "Invalid photo type. Use image/jpeg or image/png." }, { status: 400 });
   }
 
-  const buf = Buffer.from(await photo.arrayBuffer());
+  let buf: Buffer;
+  try {
+    buf = Buffer.from(await photo.arrayBuffer());
+  } catch {
+    return Response.json({ message: "Invalid photo file." }, { status: 400 });
+  }
   if (buf.length === 0) {
     return Response.json({ message: "Empty file." }, { status: 400 });
   }
 
   const key = buildTaskPhotoKey({ dailyTaskId: id, kind: "after", ext });
-  const afterPhotoUrl = await uploadBufferToS3({ key, contentType: photo.type, body: buf });
+  let afterPhotoUrl: string;
+  try {
+    afterPhotoUrl = await uploadBufferToS3({ key, contentType: photo.type, body: buf });
+  } catch {
+    return Response.json({ message: "Failed to upload photo." }, { status: 502 });
+  }
 
-  const result = await prisma.$transaction(async (tx) => {
-    const updatedTask = await tx.dailyStaffTask.update({
-      where: { id },
-      data: {
-        afterPhotoUrl,
-        status: "IN_REVIEW"
-      },
-      select: { id: true, status: true, afterPhotoUrl: true }
+  let result: { updatedTask: { id: number; status: string; afterPhotoUrl: string | null }; approval: { id: number; status: string; supervisorId: number } };
+  try {
+    result = await prisma.$transaction(async (tx) => {
+      const updatedTask = await tx.dailyStaffTask.update({
+        where: { id },
+        data: { afterPhotoUrl, status: "IN_REVIEW" },
+        select: { id: true, status: true, afterPhotoUrl: true }
+      });
+
+      const approval = await tx.taskApproval.upsert({
+        where: { dailyStaffTaskId: id },
+        update: { supervisorId, status: "PENDING", decisionNote: null, decidedAt: null },
+        create: { dailyStaffTaskId: id, staffId: task.staffId, supervisorId, status: "PENDING" },
+        select: { id: true, status: true, supervisorId: true }
+      });
+
+      return { updatedTask, approval };
     });
-
-    const approval = await tx.taskApproval.upsert({
-      where: { dailyStaffTaskId: id },
-      update: {
-        supervisorId,
-        status: "PENDING",
-        decisionNote: null,
-        decidedAt: null
-      },
-      create: {
-        dailyStaffTaskId: id,
-        staffId: task.staffId,
-        supervisorId,
-        status: "PENDING"
-      },
-      select: { id: true, status: true, supervisorId: true }
-    });
-
-    return { updatedTask, approval };
-  });
+  } catch {
+    return Response.json({ message: "Internal error." }, { status: 500 });
+  }
 
   return Response.json({
     data: {
       afterPhotoUrl: result.updatedTask.afterPhotoUrl,
-      task: {
-        id: result.updatedTask.id,
-        status: result.updatedTask.status
-      },
-      approval: {
-        id: result.approval.id,
-        status: result.approval.status,
-        supervisorId: result.approval.supervisorId
-      }
+      task: { id: result.updatedTask.id, status: result.updatedTask.status },
+      approval: { id: result.approval.id, status: result.approval.status, supervisorId: result.approval.supervisorId }
     }
   });
 }
