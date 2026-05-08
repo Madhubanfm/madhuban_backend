@@ -1,4 +1,5 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { NodeHttpHandler } from "@smithy/node-http-handler";
 
 function requiredEnv(name: string): string {
   const v = process.env[name];
@@ -37,7 +38,10 @@ export function getS3Config() {
 export function createS3Client() {
   const { region } = getS3Config();
   const credentials = getS3CredentialsOrThrow();
-  return credentials ? new S3Client({ region, credentials }) : new S3Client({ region });
+  const requestHandler = new NodeHttpHandler({ connectionTimeout: 5000, socketTimeout: 30000 });
+  return credentials
+    ? new S3Client({ region, credentials, requestHandler })
+    : new S3Client({ region, requestHandler });
 }
 
 export function buildTaskPhotoKey(params: {
