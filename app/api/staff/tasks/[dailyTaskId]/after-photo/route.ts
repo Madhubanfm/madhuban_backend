@@ -2,17 +2,11 @@ import { getAuthUserFromRequest } from "@/lib/auth";
 import { ROLE_NAMES } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { buildTaskPhotoKey, uploadBufferToS3 } from "@/lib/s3";
+import { buildPublicUrl } from "@/lib/s3";
 
 function getIntId(value: string) {
   const n = Number(value);
   return Number.isInteger(n) && n > 0 ? n : null;
-}
-
-function extFromContentType(contentType: string): "jpg" | "png" | null {
-  if (contentType === "image/png") return "png";
-  if (contentType === "image/jpeg") return "jpg";
-  return null;
 }
 
 export async function POST(req: Request, ctx: { params: Promise<{ dailyTaskId: string }> }) {
@@ -59,34 +53,22 @@ export async function POST(req: Request, ctx: { params: Promise<{ dailyTaskId: s
     return Response.json({ message: "Supervisor not assigned for this staff." }, { status: 400 });
   }
 
-  const form = await req.formData();
-  const photo = form.get("photo");
-  if (!(photo instanceof File)) {
-    return Response.json({ message: "photo file is required." }, { status: 400 });
-  }
-
-  const ext = extFromContentType(photo.type);
-  if (!ext) {
-    return Response.json({ message: "Invalid photo type. Use image/jpeg or image/png." }, { status: 400 });
-  }
-
-  let buf: Buffer;
+  let body: Record<string, unknown>;
   try {
-    buf = Buffer.from(await photo.arrayBuffer());
+    body = await req.json();
   } catch {
-    return Response.json({ message: "Invalid photo file." }, { status: 400 });
-  }
-  if (buf.length === 0) {
-    return Response.json({ message: "Empty file." }, { status: 400 });
+    return Response.json({ message: "Expected JSON body." }, { status: 400 });
   }
 
-  const key = buildTaskPhotoKey({ dailyTaskId: id, kind: "after", ext });
-  let afterPhotoUrl: string;
-  try {
-    afterPhotoUrl = await uploadBufferToS3({ key, contentType: photo.type, body: buf });
-  } catch {
-    return Response.json({ message: "Failed to upload photo." }, { status: 502 });
+  const photoKey = typeof body.photoKey === "string" ? body.photoKey.trim() : "";
+  if (!photoKey) {
+    return Response.json({ message: "photoKey is required." }, { status: 400 });
   }
+  if (!photoKey.startsWith(`tasks/${id}/after/`)) {
+    return Response.json({ message: "Invalid photoKey." }, { status: 400 });
+  }
+
+  const afterPhotoUrl = buildPublicUrl(photoKey);
 
   let result: { updatedTask: { id: number; status: string; afterPhotoUrl: string | null }; approval: { id: number; status: string; supervisorId: number } };
   try {

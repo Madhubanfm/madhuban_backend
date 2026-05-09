@@ -1,40 +1,16 @@
 import { getAuthUserFromRequest } from "@/lib/auth";
-import { createRequestId, debugApi, debugError, debugFormData, debugRequest } from "@/lib/api-debug";
+import { createRequestId, debugApi, debugError, debugRequest } from "@/lib/api-debug";
 import { ROLE_NAMES } from "@/lib/constants";
 import { deriveShiftIST, normalizeToDayIST } from "@/lib/date";
 import { parseDateParam } from "@/lib/request-date";
 import { prisma } from "@/lib/prisma";
-import { buildAttendanceSelfieKey, uploadBufferToS3 } from "@/lib/s3";
+import { buildPublicUrl } from "@/lib/s3";
 import type { StaffAttendance } from "@prisma/client";
 import { z } from "zod";
 
 const querySchema = z.object({
   date: z.string().optional()
 });
-
-function extFromContentType(contentType: string): "jpg" | "png" | null {
-  if (contentType === "image/png") return "png";
-  if (contentType === "image/jpeg") return "jpg";
-  return null;
-}
-
-function parseCoordinate(raw: FormDataEntryValue | null, label: string): { ok: true; value: number } | { ok: false; message: string } {
-  if (raw == null || raw === "") {
-    return { ok: false, message: `${label} is required.` };
-  }
-  const s = typeof raw === "string" ? raw : String(raw);
-  const n = Number(s);
-  if (!Number.isFinite(n)) {
-    return { ok: false, message: `Invalid ${label}.` };
-  }
-  return { ok: true, value: n };
-}
-
-function validateLatLng(lat: number, lng: number): string | null {
-  if (lat < -90 || lat > 90) return "latitude must be between -90 and 90.";
-  if (lng < -180 || lng > 180) return "longitude must be between -180 and 180.";
-  return null;
-}
 
 type Phase = "NOT_CHECKED_IN" | "ACTIVE" | "COMPLETED";
 
@@ -83,9 +59,7 @@ export async function GET(req: Request) {
 
   const workDate = normalizeToDayIST(date);
   const row = await prisma.staffAttendance.findUnique({
-    where: {
-      staffId_workDate: { staffId: user.userId, workDate }
-    }
+    where: { staffId_workDate: { staffId: user.userId, workDate } }
   });
 
   return Response.json({ data: attendancePayload(row, workDate) });
@@ -114,39 +88,26 @@ export async function POST(req: Request) {
     return Response.json({ message: "Not allowed." }, { status: 403 });
   }
 
-  let form: FormData;
+  let body: Record<string, unknown>;
   try {
-    form = await req.formData();
+    body = await req.json();
   } catch {
-    debugApi(routeKey, requestId, "formData:parse_failed");
-    return Response.json({ message: "Expected multipart/form-data." }, { status: 400 });
+    debugApi(routeKey, requestId, "body:parse_failed");
+    return Response.json({ message: "Expected JSON body." }, { status: 400 });
   }
 
-  await debugFormData(routeKey, requestId, form);
-
-  const actionRaw = form.get("action");
-  const action = typeof actionRaw === "string" ? actionRaw.trim() : "";
+  const action = typeof body.action === "string" ? body.action.trim() : "";
   if (action !== "check_in" && action !== "check_out") {
     debugApi(routeKey, requestId, "validation:bad_action", { action });
     return Response.json({ message: 'action must be "check_in" or "check_out".' }, { status: 400 });
   }
 
-  const latParsed = parseCoordinate(form.get("latitude"), "latitude");
-  const lngParsed = parseCoordinate(form.get("longitude"), "longitude");
-  if (!latParsed.ok) {
-    debugApi(routeKey, requestId, "validation:bad_latitude", { message: latParsed.message });
-    return Response.json({ message: latParsed.message }, { status: 400 });
-  }
-  if (!lngParsed.ok) {
-    debugApi(routeKey, requestId, "validation:bad_longitude", { message: lngParsed.message });
-    return Response.json({ message: lngParsed.message }, { status: 400 });
-  }
-
-  const coordErr = validateLatLng(latParsed.value, lngParsed.value);
-  if (coordErr) {
-    debugApi(routeKey, requestId, "validation:bad_latlng", { message: coordErr });
-    return Response.json({ message: coordErr }, { status: 400 });
-  }
+  const lat = typeof body.latitude === "number" ? body.latitude : Number(body.latitude);
+  const lng = typeof body.longitude === "number" ? body.longitude : Number(body.longitude);
+  if (!Number.isFinite(lat)) return Response.json({ message: "latitude is required." }, { status: 400 });
+  if (!Number.isFinite(lng)) return Response.json({ message: "longitude is required." }, { status: 400 });
+  if (lat < -90 || lat > 90) return Response.json({ message: "latitude must be between -90 and 90." }, { status: 400 });
+  if (lng < -180 || lng > 180) return Response.json({ message: "longitude must be between -180 and 180." }, { status: 400 });
 
   const workDate = normalizeToDayIST(new Date());
   const now = new Date();
@@ -167,39 +128,18 @@ export async function POST(req: Request) {
       return Response.json({ message: "Already checked in for this day." }, { status: 409 });
     }
 
-    const selfie = form.get("selfie");
-    if (!(selfie instanceof File)) {
-      debugApi(routeKey, requestId, "validation:selfie_missing_or_not_file", { gotType: typeof selfie });
-      return Response.json({ message: "selfie file is required for check_in." }, { status: 400 });
+    const selfieKey = typeof body.selfieKey === "string" ? body.selfieKey.trim() : "";
+    if (!selfieKey) {
+      debugApi(routeKey, requestId, "validation:selfieKey_missing");
+      return Response.json({ message: "selfieKey is required for check_in." }, { status: 400 });
     }
-    const ext = extFromContentType(selfie.type);
-    if (!ext) {
-      debugApi(routeKey, requestId, "validation:selfie_bad_type", { type: selfie.type });
-      return Response.json({ message: "Invalid selfie type. Use image/jpeg or image/png." }, { status: 400 });
-    }
-    let buf: Buffer;
-    try {
-      buf = Buffer.from(await selfie.arrayBuffer());
-    } catch (e) {
-      debugError(routeKey, requestId, e, "selfie:read_failed");
-      return Response.json({ message: "Invalid selfie file." }, { status: 400 });
-    }
-    if (buf.length === 0) {
-      debugApi(routeKey, requestId, "validation:selfie_empty");
-      return Response.json({ message: "Empty file." }, { status: 400 });
+    if (!selfieKey.startsWith(`attendance/${user.userId}/`)) {
+      debugApi(routeKey, requestId, "validation:selfieKey_invalid");
+      return Response.json({ message: "Invalid selfieKey." }, { status: 400 });
     }
 
-    const key = buildAttendanceSelfieKey({ staffId: user.userId, workDate, ext });
-    debugApi(routeKey, requestId, "s3:upload_start", { key, contentType: selfie.type, size: buf.length });
-
-    let selfieUrl: string;
-    try {
-      selfieUrl = await uploadBufferToS3({ key, contentType: selfie.type, body: buf });
-    } catch (e) {
-      debugError(routeKey, requestId, e, "s3:upload_failed");
-      return Response.json({ message: "Failed to upload selfie." }, { status: 502 });
-    }
-    debugApi(routeKey, requestId, "s3:upload_ok", { selfieUrl });
+    const selfieUrl = buildPublicUrl(selfieKey);
+    debugApi(routeKey, requestId, "s3:presigned_key_used", { selfieKey, selfieUrl });
 
     let row: StaffAttendance;
     try {
@@ -211,15 +151,15 @@ export async function POST(req: Request) {
           status: "PRESENT",
           checkInAt: now,
           selfieUrl,
-          checkInLatitude: latParsed.value,
-          checkInLongitude: lngParsed.value
+          checkInLatitude: lat,
+          checkInLongitude: lng
         },
         update: {
           status: "PRESENT",
           checkInAt: now,
           selfieUrl,
-          checkInLatitude: latParsed.value,
-          checkInLongitude: lngParsed.value
+          checkInLatitude: lat,
+          checkInLongitude: lng
         }
       });
     } catch (e) {
@@ -253,11 +193,7 @@ export async function POST(req: Request) {
   try {
     row = await prisma.staffAttendance.update({
       where: { id: existing.id },
-      data: {
-        checkOutAt: now,
-        checkOutLatitude: latParsed.value,
-        checkOutLongitude: lngParsed.value
-      }
+      data: { checkOutAt: now, checkOutLatitude: lat, checkOutLongitude: lng }
     });
   } catch (e) {
     debugError(routeKey, requestId, e, "prisma:update_failed");
@@ -267,4 +203,3 @@ export async function POST(req: Request) {
   debugApi(routeKey, requestId, "ok:check_out", { attendanceId: row.id });
   return Response.json({ data: attendancePayload(row, workDate) });
 }
-
