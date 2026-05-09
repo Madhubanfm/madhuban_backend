@@ -48,7 +48,8 @@ export async function POST(req: Request) {
         role: user.role.name
       }
     });
-  } catch {
+  } catch (e) {
+    console.error("[login] error:", e);
     return Response.json({ message: "Something went wrong." }, { status: 500 });
   }
 }
