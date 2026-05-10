@@ -80,7 +80,7 @@ export async function debugFormData(routeKey: string, requestId: string, form: F
 
   const entries: Record<string, Json> = {};
   for (const [k, v] of form.entries()) {
-    if (v instanceof File) {
+    if (typeof File !== "undefined" && v instanceof File) {
       entries[k] = { file: { name: v.name, size: v.size, type: v.type } };
     } else {
       const s = String(v);
