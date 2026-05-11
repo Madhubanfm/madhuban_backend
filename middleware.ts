@@ -17,43 +17,37 @@ function getAllowedOrigin(req: NextRequest): string {
     .map((s) => s.trim())
     .filter(Boolean);
 
-  // When credentials are enabled, browsers reject `Access-Control-Allow-Origin: *`.
-  // In that case, echo the request origin (or an allowlisted origin).
   if (allowList.length === 0) {
     return isCredentialsAllowed() ? requestOrigin : "*";
   }
   return allowList.includes(requestOrigin) ? requestOrigin : allowList[0]!;
 }
 
-function withCorsHeaders(res: NextResponse, origin: string, req?: NextRequest) {
+export function middleware(req: NextRequest) {
+  if (req.method !== "OPTIONS") {
+    // Static CORS headers for non-preflight requests are handled by next.config.ts.
+    // Avoid modifying NextResponse.next() headers here — injecting response headers
+    // through middleware can cause ERR_HTTP_HEADERS_SENT on large uploads.
+    return NextResponse.next();
+  }
+
+  // CORS preflight: respond immediately with a fresh response (no injection needed).
+  const origin = getAllowedOrigin(req);
+  const res = new NextResponse(null, { status: 204 });
   res.headers.set("Access-Control-Allow-Origin", origin);
   res.headers.set(
     "Access-Control-Allow-Methods",
-    req?.headers.get("access-control-request-method") ?? DEFAULT_ALLOWED_METHODS
+    req.headers.get("access-control-request-method") ?? DEFAULT_ALLOWED_METHODS
   );
-  // Mirror requested headers when present to avoid preflight failures caused by
-  // additional headers from the browser/framework (e.g. x-requested-with).
   res.headers.set(
     "Access-Control-Allow-Headers",
-    req?.headers.get("access-control-request-headers") ?? DEFAULT_ALLOWED_HEADERS
+    req.headers.get("access-control-request-headers") ?? DEFAULT_ALLOWED_HEADERS
   );
   if (isCredentialsAllowed() && origin !== "*") {
     res.headers.set("Access-Control-Allow-Credentials", "true");
   }
-  // Avoid caching a response that varies by Origin
   res.headers.append("Vary", "Origin");
   return res;
-}
-
-export function middleware(req: NextRequest) {
-  const origin = getAllowedOrigin(req);
-
-  if (req.method === "OPTIONS") {
-    // CORS preflight
-    return withCorsHeaders(new NextResponse(null, { status: 204 }), origin, req);
-  }
-
-  return withCorsHeaders(NextResponse.next(), origin, req);
 }
 
 export const config = {
